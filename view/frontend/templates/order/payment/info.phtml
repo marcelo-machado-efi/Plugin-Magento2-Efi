@@ -3,7 +3,7 @@ $paymentInfo = $block->getPaymentInfo();
 if ($block->getPaymentMethod() === 'gerencianet_boleto') : ?>
 
   <button type="button" class="action primary btn-gerencianet-pix" data-trigger="trigger">
-    <span data-bind="i18n: '<?= $paymentInfo['texto'] ?>'"></span>
+    <span data-bind="i18n: '<?= $block->escapeHtmlAttr($paymentInfo['texto']) ?>'"></span>
   </button>
   <div data-bind="mageInit: {
         'Magento_Ui/js/modal/modal':{
@@ -14,10 +14,10 @@ if ($block->getPaymentMethod() === 'gerencianet_boleto') : ?>
             'responsive': true,
         }}">
     <div class="content">
-      <input class="action primary btn-gerencianet-boleto" type="button" id="gerencianet" onclick="window.open('<?php echo $paymentInfo['url'] ?>');" value="Baixe seu boleto aqui" />
+      <input class="action primary btn-gerencianet-boleto" type="button" id="gerencianet" onclick="window.open('<?= $block->escapeJs($block->escapeUrl($paymentInfo['url'])) ?>');" value="Baixe seu boleto aqui" />
     </div>
     <h3>Linha digitável:</h3>
-    <textarea readonly rows="1" name="pixer" id="select-this"><?= $paymentInfo['linha-digitavel'] ?></textarea>
+    <textarea readonly rows="1" name="pixer" id="select-this"><?= $block->escapeHtml($paymentInfo['linha-digitavel']) ?></textarea>
     <div class="actions-toolbar">
       <div class="primary">
         <button id='clickMe'>Copiar</button>
@@ -28,7 +28,7 @@ if ($block->getPaymentMethod() === 'gerencianet_boleto') : ?>
 <?php
 elseif ($block->getPaymentMethod() === 'gerencianet_pix') : ?>
   <button type="button" class="action primary btn-gerencianet-pix" data-trigger="trigger">
-    <span data-bind="i18n: '<?= $paymentInfo['texto'] ?>'"></span>
+    <span data-bind="i18n: '<?= $block->escapeHtmlAttr($paymentInfo['texto']) ?>'"></span>
   </button>
   <div data-bind="mageInit: {
         'Magento_Ui/js/modal/modal':{
@@ -39,10 +39,10 @@ elseif ($block->getPaymentMethod() === 'gerencianet_pix') : ?>
             'responsive': true,
         }}">
     <div class="content">
-      <img src="<?php echo $paymentInfo['url'] ?>" alt="Erro ao carregar seu QRCode">
+      <img src="<?= $block->escapeUrl($paymentInfo['url']) ?>" alt="Erro ao carregar seu QRCode">
     </div>
     <h3>Linha digitável:</h3>
-    <textarea readonly rows="5" name="pixer" id="select-this"><?= $paymentInfo['chavepix'] ?></textarea>
+    <textarea readonly rows="5" name="pixer" id="select-this"><?= $block->escapeHtml($paymentInfo['chavepix']) ?></textarea>
     <div class="actions-toolbar">
       <div class="primary">
         <button id='clickMe'>Copiar</button>

@@ -2,8 +2,6 @@
 $request = $block->getRequest();
 
 $errorValue = $request->getParam('erro');
-
-
 ?>
 
 <html>
@@ -67,7 +65,7 @@ $errorValue = $request->getParam('erro');
         }
 
         .payment-success img,
-        .card img  {
+        .card img {
             width: 250px;
             margin-bottom: 100px;
         }
@@ -157,9 +155,9 @@ $errorValue = $request->getParam('erro');
     <?php if ($errorValue != null) : ?>
         <div class="card failure">
             <img src="https://sejaefi.com.br/_ipx/_/images/components/footer/brand-efi-by-gn-v.svg" alt="">
-            <h1 >Falha ao processar pagamento!</h1>
-            <p ><?php echo $errorValue; ?></p>
-            <a href='/sales/order/history/' class="button">Voltar para pedidos</a>
+            <h1>Falha ao processar pagamento!</h1>
+            <p><?= $block->escapeHtml($errorValue) ?></p>
+            <a href="/sales/order/history/" class="button">Voltar para pedidos</a>
         </div>
     <?php endif; ?>
     <?php if ($errorValue == null) : ?>
@@ -178,7 +176,7 @@ $errorValue = $request->getParam('erro');
         let container = document.getElementsByClassName("payment-success")[0];
 
         let intervalId = setInterval(function() {
-            fetch("/gerencianet/ajax/ofpaymentstatusajaxhandler?identificadorPagamento=<?php echo $block->getData('identificadorPagamento') ?>", {
+            fetch("/gerencianet/ajax/ofpaymentstatusajaxhandler?identificadorPagamento=<?= $block->escapeJs($block->escapeUrl($block->getData('identificadorPagamento'))) ?>", {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
                     }
@@ -209,7 +207,7 @@ $errorValue = $request->getParam('erro');
 
                     }
                     if (validatePayment == 60) {
-                        
+
                         let link = document.createElement('a');
                         link.href = `/sales/order/view/order_id/${ofStatus.order_id}/`;
                         link.className = 'button';

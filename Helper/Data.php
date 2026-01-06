@@ -6,6 +6,8 @@ use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Framework\App\Helper\Context;
 use Magento\Store\Model\ScopeInterface;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 
 class Data extends AbstractHelper
 {
@@ -105,14 +107,13 @@ class Data extends AbstractHelper
 		return $this->getConfig('payment/gerencianet_open_finance/active');
 	}
 
-	
+
 
 	/** Escreve um log na pasta var */
 	public function logger($string)
 	{
-		$writer = new \Laminas\Log\Writer\Stream(BP . '/var/log/gerencianet_magento2.log');
-		$logger = new \Laminas\Log\Logger();
-		$logger->addWriter($writer);
+		$logger = new Logger('gerencianet');
+		$logger->pushHandler(new StreamHandler(BP . '/var/log/gerencianet_magento2.log', Logger::INFO));
 		$logger->info(json_encode($string));
 	}
 
@@ -167,7 +168,7 @@ class Data extends AbstractHelper
 
 	public function getOrderStatus()
 	{
-        $status = $this->getConfig('payment/gerencianet_configuracoes/order_status');
+		$status = $this->getConfig('payment/gerencianet_configuracoes/order_status');
 		return $status ?? 'pending';
 	}
 }
