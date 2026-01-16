@@ -3,7 +3,6 @@
 namespace Gerencianet\Magento2\Model\Config\Backend;
 
 use Exception;
-use Gerencianet\Magento2\Helper\Data;
 use Magento\Config\Model\Config\Backend\File;
 use Magento\Config\Model\Config\Backend\File\RequestData\RequestDataInterface;
 use Magento\Framework\App\Cache\TypeListInterface;
@@ -19,8 +18,12 @@ use Magento\MediaStorage\Model\File\UploaderFactory;
 
 class CertificadoUpload extends File
 {
-    protected DirectoryList $_dir;
-    private Data $_gHelper;
+    private const CERTIFICATE_FILENAME = 'certificate.pem';
+
+    private const FILE_ID_PIX = 'groups[gerencianet_pix][fields][certificado][value]';
+    private const FILE_ID_OPEN_FINANCE = 'groups[gerencianet_open_finance][fields][certificado][value]';
+
+    private DirectoryList $dir;
 
     public function __construct(
         Context $context,
@@ -30,13 +33,11 @@ class CertificadoUpload extends File
         UploaderFactory $uploaderFactory,
         RequestDataInterface $requestData,
         Filesystem $filesystem,
-        DirectoryList $dl,
-        Data $gHelper,
+        DirectoryList $dir,
         AbstractResource $resource = null,
         AbstractDb $resourceCollection = null
     ) {
-        $this->_dir = $dl;
-        $this->_gHelper = $gHelper;
+        $this->dir = $dir;
 
         parent::__construct(
             $context,
@@ -53,68 +54,107 @@ class CertificadoUpload extends File
 
     public function beforeSave()
     {
-        $name = 'certificate.pem';
-        $uploadDir = $this->_dir->getPath('media') . '/test/';
-        $certificatePath = $uploadDir . $name;
+        $uploadDir = rtrim($this->dir->getPath('media'), '/') . '/test/';
 
-        $pixActive = (bool)$this->_gHelper->isPixActive();
-        $openFinanceActive = (bool)$this->_gHelper->isOpenFinanceActive();
-        $needsCertificate = ($pixActive || $openFinanceActive);
+        $pixActive = $this->isPaymentMethodActive('gerencianet_pix');
+        $openFinanceActive = $this->isPaymentMethodActive('gerencianet_open_finance');
+        $needsCertificate = $pixActive || $openFinanceActive;
 
-        if (!$needsCertificate) {
+        $fileId = $this->detectUploadedFileId();
+
+        if ($fileId !== null) {
+            $uploadedName = $this->uploadAndGetUploadedFilename($fileId, $uploadDir);
+            $this->convertToPem($uploadedName, $uploadDir, self::CERTIFICATE_FILENAME);
+            $this->removeUnusedCertificates($uploadDir);
+
+            $this->setValue(self::CERTIFICATE_FILENAME);
             return parent::beforeSave();
         }
 
-        $fileData = $this->getFileData();
-        $hasUpload = is_array($fileData) && !empty($fileData['tmp_name']);
-
-        if ($hasUpload) {
-            $originalName = (string)($fileData['name'] ?? '');
-            $extName = $this->getExtensionName($originalName);
-
-            if ($this->isValidExtension($extName)) {
-                throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
-            }
-
-            $fileId = $this->buildFileIdFromPath();
-
-            $this->makeUpload($fileId, $uploadDir);
-            $this->convertToPem($originalName, $uploadDir, $name);
-            $this->removeUnusedCertificates($uploadDir);
-        }
-
-        if (!file_exists($certificatePath)) {
+        if ($needsCertificate && !is_file($uploadDir . self::CERTIFICATE_FILENAME)) {
             throw new LocalizedException(
-                __('É necessário realizar o upload do certificado (.pem ou .p12) para utilizar Pix e/ou Open Finance.')
+                __('Certificado obrigatório: faça upload do certificado (.pem ou .p12) para Pix ou Open Finance.')
             );
         }
 
-        $this->setValue($name);
-
+        $this->setValue(self::CERTIFICATE_FILENAME);
         return parent::beforeSave();
     }
 
-    private function buildFileIdFromPath(): string
+    private function isPaymentMethodActive(string $groupId): bool
     {
-        $path = (string)$this->getPath();
-        $parts = explode('/', $path);
-
-        $groupId = $parts[1] ?? '';
-        if ($groupId === '') {
-            $groupId = 'gerencianet_pix';
-        }
-
-        return 'groups[' . $groupId . '][fields][certificado][value]';
+        $path = 'payment/' . $groupId . '/active';
+        return (bool)$this->_config->getValue($path, $this->getScope(), $this->getScopeId());
     }
 
-    public function makeUpload($fileId, $uploadDir)
+    private function detectUploadedFileId(): ?string
+    {
+        if ($this->hasFileTmpName(self::FILE_ID_PIX)) {
+            return self::FILE_ID_PIX;
+        }
+
+        if ($this->hasFileTmpName(self::FILE_ID_OPEN_FINANCE)) {
+            return self::FILE_ID_OPEN_FINANCE;
+        }
+
+        return null;
+    }
+
+    private function hasFileTmpName(string $fileId): bool
+    {
+        $tmpName = $this->getNestedFilesValue($fileId, 'tmp_name');
+        return is_string($tmpName) && $tmpName !== '';
+    }
+
+    private function getNestedFilesValue(string $fileId, string $leafKey)
+    {
+        if (!isset($_FILES) || !is_array($_FILES)) {
+            return null;
+        }
+
+        $segments = $this->parseFileIdToSegments($fileId);
+
+        $cursor = $_FILES;
+        foreach ($segments as $seg) {
+            if (!is_array($cursor) || !array_key_exists($seg, $cursor)) {
+                return null;
+            }
+            $cursor = $cursor[$seg];
+        }
+
+        if (!is_array($cursor) || !array_key_exists($leafKey, $cursor)) {
+            return null;
+        }
+
+        return $cursor[$leafKey];
+    }
+
+    private function parseFileIdToSegments(string $fileId): array
+    {
+        $normalized = str_replace(['][', '[', ']'], ['.', '.', ''], $fileId);
+        $normalized = trim($normalized, '.');
+
+        return $normalized === '' ? [] : explode('.', $normalized);
+    }
+
+    private function uploadAndGetUploadedFilename(string $fileId, string $uploadDir): string
     {
         try {
             $uploader = $this->_uploaderFactory->create(['fileId' => $fileId]);
             $uploader->setAllowedExtensions($this->getAllowedExtensions());
             $uploader->setAllowRenameFiles(true);
             $uploader->addValidateCallback('size', $this, 'validateMaxSize');
-            $uploader->save($uploadDir);
+
+            $result = $uploader->save($uploadDir);
+
+            $fileName = is_array($result) ? (string)($result['file'] ?? '') : '';
+            if ($fileName === '') {
+                throw new LocalizedException(__('Falha ao salvar o arquivo do certificado.'));
+            }
+
+            return ltrim($fileName, '/\\');
+        } catch (LocalizedException $e) {
+            throw $e;
         } catch (Exception $e) {
             throw new LocalizedException(__('%1', $e->getMessage()));
         }
@@ -122,18 +162,25 @@ class CertificadoUpload extends File
 
     public function convertToPem($fileName, $uploadDir, $newFilename)
     {
+        $fileName = (string)$fileName;
+        $uploadDir = (string)$uploadDir;
+        $newFilename = (string)$newFilename;
+
         $filePath = $uploadDir . $fileName;
 
         if (!file_exists($filePath)) {
             return;
         }
 
-        $pkcs12 = file_get_contents($filePath);
+        $content = file_get_contents($filePath);
+        if ($content === false) {
+            return;
+        }
 
         if ($this->getExtensionName($fileName) === 'p12') {
             $certificate = [];
 
-            if (openssl_pkcs12_read($pkcs12, $certificate, '')) {
+            if (openssl_pkcs12_read($content, $certificate, '')) {
                 $pem = '';
                 $cert = '';
                 $extracert1 = '';
@@ -162,7 +209,7 @@ class CertificadoUpload extends File
             return;
         }
 
-        file_put_contents($uploadDir . $newFilename, $pkcs12);
+        file_put_contents($uploadDir . $newFilename, $content);
     }
 
     public function getAllowedExtensions(): array
@@ -172,25 +219,24 @@ class CertificadoUpload extends File
 
     public function getExtensionName($fileName): string
     {
-        if (empty($fileName)) {
+        $fileName = (string)$fileName;
+
+        if ($fileName === '') {
             return '';
         }
 
-        return strtolower(pathinfo((string)$fileName, PATHINFO_EXTENSION));
-    }
-
-    public function isValidExtension($extName): bool
-    {
-        return !empty($extName) && !in_array($extName, $this->getAllowedExtensions(), true);
+        return strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
     }
 
     public function removeUnusedCertificates($uploadDir)
     {
+        $uploadDir = (string)$uploadDir;
+
         if (!is_dir($uploadDir)) {
             return;
         }
 
-        $files = array_diff(scandir($uploadDir), ['.', '..', 'certificate.pem']);
+        $files = array_diff(scandir($uploadDir), ['.', '..', self::CERTIFICATE_FILENAME]);
 
         foreach ($files as $f) {
             $path = $uploadDir . DIRECTORY_SEPARATOR . $f;
