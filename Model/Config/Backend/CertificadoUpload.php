@@ -25,6 +25,9 @@ class CertificadoUpload extends File
     /** @var DirectoryList */
     protected $_dir;
 
+    /** @var bool */
+    private $debugEnabled = false;
+
     public function __construct(
         Context $context,
         Registry $registry,
@@ -52,6 +55,8 @@ class CertificadoUpload extends File
             $resource,
             $resourceCollection
         );
+
+        $this->debugEnabled = $this->shouldDebug();
     }
 
     public function beforeSave()
@@ -296,8 +301,28 @@ class CertificadoUpload extends File
         ]);
     }
 
+    private function shouldDebug(): bool
+    {
+        $method = (string)($_SERVER['REQUEST_METHOD'] ?? 'GET');
+        if ($method !== 'POST') {
+            return false;
+        }
+
+        $section = (string)($_POST['section'] ?? $_GET['section'] ?? '');
+        if ($section === 'payment') {
+            return true;
+        }
+
+        $currentPath = (string)$this->getPath();
+        return str_contains($currentPath, 'payment/gerencianet_');
+    }
+
     private function debug(array $data): void
     {
+        if (!$this->debugEnabled) {
+            return;
+        }
+
         try {
             $this->_gHelper->logger($data);
         } catch (Exception $e) {
