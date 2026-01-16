@@ -53,15 +53,11 @@ class CertificadoUpload extends File
 
     public function beforeSave()
     {
-        $isPost = $this->isPostRequest();
-
-        if ($isPost) {
-            $this->log('cert_upload.beforeSave.start', [
-                'path' => (string)$this->getPath(),
-                'scope' => (string)$this->getScope(),
-                'scope_id' => (string)$this->getScopeId(),
-            ]);
-        }
+        $this->log('cert_upload.beforeSave.start', [
+            'path' => (string)$this->getPath(),
+            'scope' => (string)$this->getScope(),
+            'scope_id' => (string)$this->getScopeId(),
+        ]);
 
         $name = 'certificate.pem';
         $uploadDir = $this->_dir->getPath('media') . '/test/';
@@ -69,75 +65,51 @@ class CertificadoUpload extends File
         $fileData = $this->getFileData();
         $hasUpload = is_array($fileData) && !empty($fileData['tmp_name']);
 
-        if ($isPost) {
-            $this->log('cert_upload.fileData', [
-                'hasUpload' => $hasUpload,
-                'keys' => is_array($fileData) ? array_keys($fileData) : 'not_array',
-                'tmp_name_set' => is_array($fileData) && array_key_exists('tmp_name', $fileData),
-                'name' => is_array($fileData) ? (string)($fileData['name'] ?? '') : '',
-                'error' => is_array($fileData) ? ($fileData['error'] ?? null) : null,
-                'size' => is_array($fileData) ? ($fileData['size'] ?? null) : null,
-            ]);
-        }
+        $this->log('cert_upload.fileData', [
+            'hasUpload' => $hasUpload,
+            'is_array' => is_array($fileData),
+            'keys' => is_array($fileData) ? array_keys($fileData) : 'not_array',
+            'tmp_name_set' => is_array($fileData) && array_key_exists('tmp_name', $fileData),
+            'name' => is_array($fileData) ? (string)($fileData['name'] ?? '') : '',
+            'error' => is_array($fileData) ? ($fileData['error'] ?? null) : null,
+            'size' => is_array($fileData) ? ($fileData['size'] ?? null) : null,
+        ]);
 
         if ($hasUpload) {
             $originalName = (string)($fileData['name'] ?? '');
             $extName = $this->getExtensionName($originalName);
 
             if ($this->isValidExtension($extName)) {
-                if ($isPost) {
-                    $this->log('cert_upload.invalid_extension', ['ext' => $extName, 'name' => $originalName]);
-                }
+                $this->log('cert_upload.invalid_extension', ['ext' => $extName, 'name' => $originalName]);
                 throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
             }
 
             $fileId = $this->buildFileIdFromPath();
 
-            if ($isPost) {
-                $this->log('cert_upload.uploader.create', [
-                    'fileId' => $fileId,
-                    'uploadDir' => $uploadDir,
-                ]);
-            }
+            $this->log('cert_upload.uploader.create', [
+                'fileId' => $fileId,
+                'uploadDir' => $uploadDir,
+            ]);
 
             $this->makeUpload($fileId, $uploadDir);
 
-            if ($isPost) {
-                $this->log('cert_upload.convert.start', [
-                    'originalName' => $originalName,
-                    'uploadDir' => $uploadDir,
-                    'target' => $name,
-                ]);
-            }
+            $this->log('cert_upload.convert.start', [
+                'originalName' => $originalName,
+                'uploadDir' => $uploadDir,
+                'target' => $name,
+            ]);
 
             $this->convertToPem($originalName, $uploadDir, $name);
             $this->removeUnusedCertificates($uploadDir);
 
-            if ($isPost) {
-                $this->log('cert_upload.done', ['saved_as' => $name]);
-            }
+            $this->log('cert_upload.done', ['saved_as' => $name]);
         }
 
         $this->setValue($name);
 
-        if ($isPost) {
-            $this->log('cert_upload.beforeSave.end', ['value_set' => $name]);
-        }
+        $this->log('cert_upload.beforeSave.end', ['value_set' => $name]);
 
         return parent::beforeSave();
-    }
-
-    private function isPostRequest(): bool
-    {
-        try {
-            $request = $this->_requestData->getRequest();
-            if ($request) {
-                return strtoupper((string)$request->getMethod()) === 'POST';
-            }
-        } catch (Exception $e) {
-        }
-
-        return false;
     }
 
     private function log(string $event, array $context = []): void
