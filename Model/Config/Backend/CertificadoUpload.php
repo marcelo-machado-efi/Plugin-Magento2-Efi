@@ -63,12 +63,14 @@ class CertificadoUpload extends File
         $fileId = $this->detectUploadedFileId();
 
         if ($fileId !== null) {
+            $this->clearDirectory($uploadDir);
+
             $uploadedName = $this->uploadAndGetUploadedFilename($fileId, $uploadDir);
             $this->convertToPem($uploadedName, $uploadDir, self::CERTIFICATE_FILENAME);
             $this->removeUnusedCertificates($uploadDir);
 
             $this->setValue(self::CERTIFICATE_FILENAME);
-            return parent::beforeSave();
+            return $this;
         }
 
         if ($needsCertificate && !is_file($uploadDir . self::CERTIFICATE_FILENAME)) {
@@ -78,7 +80,7 @@ class CertificadoUpload extends File
         }
 
         $this->setValue(self::CERTIFICATE_FILENAME);
-        return parent::beforeSave();
+        return $this;
     }
 
     private function isPaymentMethodActive(string $groupId): bool
@@ -140,6 +142,8 @@ class CertificadoUpload extends File
     private function uploadAndGetUploadedFilename(string $fileId, string $uploadDir): string
     {
         try {
+            $this->ensureDirExists($uploadDir);
+
             $uploader = $this->_uploaderFactory->create(['fileId' => $fileId]);
             $uploader->setAllowedExtensions($this->getAllowedExtensions());
             $uploader->setAllowRenameFiles(true);
@@ -157,6 +161,43 @@ class CertificadoUpload extends File
             throw $e;
         } catch (Exception $e) {
             throw new LocalizedException(__('%1', $e->getMessage()));
+        }
+    }
+
+    private function ensureDirExists(string $uploadDir): void
+    {
+        if (is_dir($uploadDir)) {
+            return;
+        }
+
+        if (!@mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+            throw new LocalizedException(__('Falha ao criar o diretório de upload do certificado.'));
+        }
+    }
+
+    private function clearDirectory(string $uploadDir): void
+    {
+        $uploadDir = (string)$uploadDir;
+
+        if (!is_dir($uploadDir)) {
+            return;
+        }
+
+        $entries = scandir($uploadDir);
+        if (!is_array($entries)) {
+            return;
+        }
+
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            $path = $uploadDir . DIRECTORY_SEPARATOR . $entry;
+
+            if (is_file($path)) {
+                @unlink($path);
+            }
         }
     }
 
