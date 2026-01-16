@@ -56,11 +56,11 @@ class CertificadoUpload extends File
 
     public function beforeSave()
     {
-        $name = "certificate.pem";
+        $name = 'certificate.pem';
 
         if ($this->_gHelper->isPixActive()) {
-            $uploadDir = $this->_dir->getPath('media') . "/test/";
-            $fileData = $this->normalizeFileData($this->getFileData());
+            $uploadDir = $this->_dir->getPath('media') . '/test/';
+            $fileData = $this->getFileData();
 
             if (!empty($fileData['tmp_name'])) {
                 $originalName = (string)($fileData['name'] ?? '');
@@ -70,7 +70,9 @@ class CertificadoUpload extends File
                     throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
                 }
 
-                $this->makeUpload($fileData, $uploadDir);
+                $fileId = $this->buildFileIdFromPath();
+
+                $this->makeUpload($fileId, $uploadDir);
                 $this->convertToPem($originalName, $uploadDir, $name);
             }
 
@@ -81,10 +83,23 @@ class CertificadoUpload extends File
         return parent::beforeSave();
     }
 
-    public function makeUpload($fileData, $uploadDir)
+    private function buildFileIdFromPath(): string
+    {
+        $path = (string)$this->getPath();
+        $parts = explode('/', $path);
+
+        $groupId = $parts[1] ?? '';
+        if ($groupId === '') {
+            $groupId = 'gerencianet_pix';
+        }
+
+        return 'groups[' . $groupId . '][fields][certificado][value]';
+    }
+
+    public function makeUpload($fileId, $uploadDir)
     {
         try {
-            $uploader = $this->_uploaderFactory->create(['fileId' => $fileData]);
+            $uploader = $this->_uploaderFactory->create(['fileId' => $fileId]);
             $uploader->setAllowedExtensions($this->getAllowedExtensions());
             $uploader->setAllowRenameFiles(true);
             $uploader->addValidateCallback('size', $this, 'validateMaxSize');
@@ -105,9 +120,9 @@ class CertificadoUpload extends File
 
         $pkcs12 = file_get_contents($filePath);
 
-        if ($this->getExtensionName($fileName) === "p12") {
+        if ($this->getExtensionName($fileName) === 'p12') {
             if (openssl_pkcs12_read($pkcs12, $certificate, '')) {
-                $pem = $cert = $extracert1 = $extracert2 = "";
+                $pem = $cert = $extracert1 = $extracert2 = '';
 
                 if (isset($certificate['pkey'])) {
                     openssl_pkey_export($certificate['pkey'], $pem, null);
@@ -166,18 +181,5 @@ class CertificadoUpload extends File
                 unlink($path);
             }
         }
-    }
-
-    private function normalizeFileData($fileData): array
-    {
-        if (is_array($fileData) && isset($fileData['tmp_name'])) {
-            return $fileData;
-        }
-
-        if (is_array($fileData) && isset($fileData['value']) && is_array($fileData['value']) && isset($fileData['value']['tmp_name'])) {
-            return $fileData['value'];
-        }
-
-        return [];
     }
 }
