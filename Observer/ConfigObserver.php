@@ -23,6 +23,9 @@ class ConfigObserver implements ObserverInterface
     /** @var Config */
     private $_resourceConfig;
 
+    /** @var DirectoryList */
+    private $_dir;
+
     public function __construct(
         Data $helperData,
         StoreManagerInterface $storeManager,
@@ -61,12 +64,6 @@ class ConfigObserver implements ObserverInterface
         try {
             $api = Gerencianet::getInstance($options);
             $pix = $api->pixConfigWebhook($params, $body);
-
-            //echo print_r($pix);
-
-            //print_r("'<pre>' . json_encode($pix, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . '</pre>'");
-            //exit();
-
         } catch (Exception $e) {
             $this->_helperData->logger($e->getMessage());
             throw new Exception($e->getMessage());
@@ -76,24 +73,16 @@ class ConfigObserver implements ObserverInterface
     {
         $this->defaultName($observer);
 
-
-
         $options = $this->_helperData->getOptions();
         $options['pix_cert'] = $this->getCertificadoPath();
-
 
         $callbackUrl = $this->getNotificationUrlOpenFinance();
 
         $redirectUrl = $this->getRedirectnUrlOpenFinance();
 
-
-
-
         $hash = hash('sha256', $options['client_id']);
 
         $webhookSecurity = ["type" => "hmac", "hash" => $hash];
-
-
 
         $body = [
 
@@ -102,19 +91,13 @@ class ConfigObserver implements ObserverInterface
             'redirectURL' => $redirectUrl,
 
             'webhookSecurity' => $webhookSecurity,
-            'processPayment' =>'async'
+            'processPayment' => 'async'
 
         ];
 
         try {
             $api = new Gerencianet($options);
             $openFinance = $api->ofConfigUpdate($params = [], $body);
-
-            //echo print_r($pix);
-
-            //print_r("'<pre>' . json_encode($pix, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . '</pre>'");
-            //exit();
-
         } catch (Exception $e) {
             $this->_helperData->logger($e->getMessage());
             throw new Exception($e->getMessage());
