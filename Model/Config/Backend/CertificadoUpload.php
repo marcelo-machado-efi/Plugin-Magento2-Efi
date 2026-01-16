@@ -59,25 +59,19 @@ class CertificadoUpload extends File
         $name = "certificate.pem";
 
         if ($this->_gHelper->isPixActive()) {
-            $value = $this->getValue();
-            $fileData = $this->getFileData();
             $uploadDir = $this->_dir->getPath('media') . "/test/";
-
-            $fileName = is_array($value) ? ($value['name'] ?? '') : (string)$value;
-            $fileName = (string)$fileName;
+            $fileData = $this->normalizeFileData($this->getFileData());
 
             if (!empty($fileData['tmp_name'])) {
-                $originalName = $fileData['name'] ?? $fileName;
-                $extName = $this->getExtensionName((string)$originalName);
+                $originalName = (string)($fileData['name'] ?? '');
+                $extName = $this->getExtensionName($originalName);
 
                 if ($this->isValidExtension($extName)) {
                     throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
                 }
 
-                $fileId = 'groups[gerencianet_pix][fields][certificado][value]';
-
-                $this->makeUpload($fileId, $uploadDir);
-                $this->convertToPem((string)$originalName, $uploadDir, $name);
+                $this->makeUpload($fileData, $uploadDir);
+                $this->convertToPem($originalName, $uploadDir, $name);
             }
 
             $this->removeUnusedCertificates($uploadDir);
@@ -87,10 +81,10 @@ class CertificadoUpload extends File
         return parent::beforeSave();
     }
 
-    public function makeUpload($fileId, $uploadDir)
+    public function makeUpload($fileData, $uploadDir)
     {
         try {
-            $uploader = $this->_uploaderFactory->create(['fileId' => $fileId]);
+            $uploader = $this->_uploaderFactory->create(['fileId' => $fileData]);
             $uploader->setAllowedExtensions($this->getAllowedExtensions());
             $uploader->setAllowRenameFiles(true);
             $uploader->addValidateCallback('size', $this, 'validateMaxSize');
@@ -131,8 +125,8 @@ class CertificadoUpload extends File
                     openssl_x509_export($certificate['extracerts'][1], $extracert2);
                 }
 
-                $pem_file_contents = $cert . $pem . $extracert1 . $extracert2;
-                file_put_contents($uploadDir . $newFilename, $pem_file_contents);
+                $pemFileContents = $cert . $pem . $extracert1 . $extracert2;
+                file_put_contents($uploadDir . $newFilename, $pemFileContents);
             }
         } else {
             file_put_contents($uploadDir . $newFilename, $pkcs12);
@@ -172,5 +166,18 @@ class CertificadoUpload extends File
                 unlink($path);
             }
         }
+    }
+
+    private function normalizeFileData($fileData): array
+    {
+        if (is_array($fileData) && isset($fileData['tmp_name'])) {
+            return $fileData;
+        }
+
+        if (is_array($fileData) && isset($fileData['value']) && is_array($fileData['value']) && isset($fileData['value']['tmp_name'])) {
+            return $fileData['value'];
+        }
+
+        return [];
     }
 }
