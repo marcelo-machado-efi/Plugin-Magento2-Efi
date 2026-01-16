@@ -53,82 +53,53 @@ class CertificadoUpload extends File
 
     public function beforeSave()
     {
-        $this->log('cert_upload.beforeSave.start', [
-            'path' => (string)$this->getPath(),
-            'scope' => (string)$this->getScope(),
-            'scope_id' => (string)$this->getScopeId(),
-        ]);
-
         $name = 'certificate.pem';
         $uploadDir = $this->_dir->getPath('media') . '/test/';
+        $certificatePath = $uploadDir . $name;
+
+        $pixActive = (bool)$this->_gHelper->isPixActive();
+        $openFinanceActive = (bool)$this->_gHelper->isOpenFinanceActive();
+        $needsCertificate = ($pixActive || $openFinanceActive);
+
+        if (!$needsCertificate) {
+            return parent::beforeSave();
+        }
 
         $fileData = $this->getFileData();
         $hasUpload = is_array($fileData) && !empty($fileData['tmp_name']);
-
-        $this->log('cert_upload.fileData', [
-            'hasUpload' => $hasUpload,
-            'is_array' => is_array($fileData),
-            'keys' => is_array($fileData) ? array_keys($fileData) : 'not_array',
-            'tmp_name_set' => is_array($fileData) && array_key_exists('tmp_name', $fileData),
-            'name' => is_array($fileData) ? (string)($fileData['name'] ?? '') : '',
-            'error' => is_array($fileData) ? ($fileData['error'] ?? null) : null,
-            'size' => is_array($fileData) ? ($fileData['size'] ?? null) : null,
-        ]);
 
         if ($hasUpload) {
             $originalName = (string)($fileData['name'] ?? '');
             $extName = $this->getExtensionName($originalName);
 
             if ($this->isValidExtension($extName)) {
-                $this->log('cert_upload.invalid_extension', ['ext' => $extName, 'name' => $originalName]);
                 throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
             }
 
             $fileId = $this->buildFileIdFromPath();
 
-            $this->log('cert_upload.uploader.create', [
-                'fileId' => $fileId,
-                'uploadDir' => $uploadDir,
-            ]);
-
             $this->makeUpload($fileId, $uploadDir);
-
-            $this->log('cert_upload.convert.start', [
-                'originalName' => $originalName,
-                'uploadDir' => $uploadDir,
-                'target' => $name,
-            ]);
-
             $this->convertToPem($originalName, $uploadDir, $name);
             $this->removeUnusedCertificates($uploadDir);
+        }
 
-            $this->log('cert_upload.done', ['saved_as' => $name]);
+        if (!file_exists($certificatePath)) {
+            throw new LocalizedException(
+                __('É necessário realizar o upload do certificado (.pem ou .p12) para utilizar Pix e/ou Open Finance.')
+            );
         }
 
         $this->setValue($name);
 
-        $this->log('cert_upload.beforeSave.end', ['value_set' => $name]);
-
         return parent::beforeSave();
-    }
-
-    private function log(string $event, array $context = []): void
-    {
-        try {
-            $this->_gHelper->logger([
-                'event' => $event,
-                'context' => $context,
-            ]);
-        } catch (Exception $e) {
-        }
     }
 
     private function buildFileIdFromPath(): string
     {
         $path = (string)$this->getPath();
         $parts = explode('/', $path);
-        $groupId = $parts[1] ?? '';
 
+        $groupId = $parts[1] ?? '';
         if ($groupId === '') {
             $groupId = 'gerencianet_pix';
         }
@@ -145,10 +116,6 @@ class CertificadoUpload extends File
             $uploader->addValidateCallback('size', $this, 'validateMaxSize');
             $uploader->save($uploadDir);
         } catch (Exception $e) {
-            $this->log('cert_upload.uploader.exception', [
-                'message' => $e->getMessage(),
-                'type' => get_class($e),
-            ]);
             throw new LocalizedException(__('%1', $e->getMessage()));
         }
     }
@@ -158,7 +125,6 @@ class CertificadoUpload extends File
         $filePath = $uploadDir . $fileName;
 
         if (!file_exists($filePath)) {
-            $this->log('cert_upload.convert.missing_source', ['filePath' => $filePath]);
             return;
         }
 
@@ -193,7 +159,6 @@ class CertificadoUpload extends File
                 return;
             }
 
-            $this->log('cert_upload.convert.pkcs12_read_failed', ['fileName' => $fileName]);
             return;
         }
 
