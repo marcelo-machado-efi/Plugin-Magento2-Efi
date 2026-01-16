@@ -28,6 +28,9 @@ class CertificadoUpload extends File
     /** @var bool */
     private $debugEnabled = false;
 
+    /** @var bool */
+    private static $debugOnce = false;
+
     public function __construct(
         Context $context,
         Registry $registry,
@@ -55,12 +58,12 @@ class CertificadoUpload extends File
             $resource,
             $resourceCollection
         );
-
-        $this->debugEnabled = $this->shouldDebug();
     }
 
     public function beforeSave()
     {
+        $this->debugEnabled = $this->isPostSaveRequest();
+
         $name = 'certificate.pem';
         $uploadDir = $this->_dir->getPath('media') . '/test/';
         $certificatePath = $uploadDir . $name;
@@ -73,7 +76,7 @@ class CertificadoUpload extends File
 
         $fileId = $this->buildFileIdFromPath();
 
-        $this->debug([
+        $this->debugOnce([
             'step' => 'beforeSave:start',
             'path' => (string)$this->getPath(),
             'fileId' => $fileId,
@@ -94,44 +97,32 @@ class CertificadoUpload extends File
             $originalName = (string)($fileData['name'] ?? '');
             $extName = $this->getExtensionName($originalName);
 
-            $this->debug([
-                'step' => 'beforeSave:upload:detected',
-                'originalName' => $originalName,
-                'extName' => $extName,
-            ]);
-
             if ($this->isValidExtension($extName)) {
                 $this->debug([
-                    'step' => 'beforeSave:upload:invalid_extension',
+                    'step' => 'beforeSave:invalid_extension',
                     'extName' => $extName,
+                    'originalName' => $originalName,
                 ]);
 
                 throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
             }
 
-            try {
-                $this->makeUpload($fileId, $uploadDir);
+            $this->debug([
+                'step' => 'beforeSave:makeUpload:calling',
+                'fileId' => $fileId,
+            ]);
 
-                $this->debug([
-                    'step' => 'beforeSave:upload:makeUpload:ok',
-                    'fileId' => $fileId,
-                ]);
-            } catch (Exception $e) {
-                $this->debug([
-                    'step' => 'beforeSave:upload:makeUpload:exception',
-                    'fileId' => $fileId,
-                    'exceptionClass' => get_class($e),
-                    'exceptionMessage' => $e->getMessage(),
-                ]);
+            $this->makeUpload($fileId, $uploadDir);
 
-                throw $e;
-            }
+            $this->debug([
+                'step' => 'beforeSave:makeUpload:ok',
+            ]);
 
             $this->convertToPem($originalName, $uploadDir, $name);
             $this->removeUnusedCertificates($uploadDir);
 
             $this->debug([
-                'step' => 'beforeSave:upload:post_process:done',
+                'step' => 'beforeSave:post_process:done',
                 'certificateExistsAfter' => file_exists($certificatePath) ? 1 : 0,
             ]);
         }
@@ -157,6 +148,17 @@ class CertificadoUpload extends File
         return parent::beforeSave();
     }
 
+    private function isPostSaveRequest(): bool
+    {
+        $method = (string)($_SERVER['REQUEST_METHOD'] ?? 'GET');
+        if ($method !== 'POST') {
+            return false;
+        }
+
+        $path = (string)$this->getPath();
+        return str_starts_with($path, 'payment/gerencianet_pix/') || str_starts_with($path, 'payment/gerencianet_open_finance/');
+    }
+
     private function buildFileIdFromPath(): string
     {
         $path = (string)$this->getPath();
@@ -173,22 +175,11 @@ class CertificadoUpload extends File
     public function makeUpload($fileId, $uploadDir)
     {
         try {
-            $this->debug([
-                'step' => 'makeUpload:start',
-                'fileId' => $fileId,
-                'uploadDir' => $uploadDir,
-            ]);
-
             $uploader = $this->_uploaderFactory->create(['fileId' => $fileId]);
             $uploader->setAllowedExtensions($this->getAllowedExtensions());
             $uploader->setAllowRenameFiles(true);
             $uploader->addValidateCallback('size', $this, 'validateMaxSize');
             $uploader->save($uploadDir);
-
-            $this->debug([
-                'step' => 'makeUpload:end',
-                'fileId' => $fileId,
-            ]);
         } catch (Exception $e) {
             $this->debug([
                 'step' => 'makeUpload:exception',
@@ -206,14 +197,11 @@ class CertificadoUpload extends File
         $certificate = [];
         $filePath = $uploadDir . $fileName;
 
-        $this->debug([
-            'step' => 'convertToPem:start',
-            'fileName' => $fileName,
-            'filePath' => $filePath,
-            'exists' => file_exists($filePath) ? 1 : 0,
-        ]);
-
         if (!file_exists($filePath)) {
+            $this->debug([
+                'step' => 'convertToPem:file_missing',
+                'filePath' => $filePath,
+            ]);
             return;
         }
 
@@ -241,23 +229,9 @@ class CertificadoUpload extends File
 
                 $pemFileContents = $cert . $pem . $extracert1 . $extracert2;
                 file_put_contents($uploadDir . $newFilename, $pemFileContents);
-
-                $this->debug([
-                    'step' => 'convertToPem:wrote',
-                    'target' => $uploadDir . $newFilename,
-                ]);
-            } else {
-                $this->debug([
-                    'step' => 'convertToPem:pkcs12_read_failed',
-                ]);
             }
         } else {
             file_put_contents($uploadDir . $newFilename, $pkcs12);
-
-            $this->debug([
-                'step' => 'convertToPem:copied',
-                'target' => $uploadDir . $newFilename,
-            ]);
         }
     }
 
@@ -294,27 +268,6 @@ class CertificadoUpload extends File
                 unlink($path);
             }
         }
-
-        $this->debug([
-            'step' => 'removeUnusedCertificates:done',
-            'uploadDir' => $uploadDir,
-        ]);
-    }
-
-    private function shouldDebug(): bool
-    {
-        $method = (string)($_SERVER['REQUEST_METHOD'] ?? 'GET');
-        if ($method !== 'POST') {
-            return false;
-        }
-
-        $section = (string)($_POST['section'] ?? $_GET['section'] ?? '');
-        if ($section === 'payment') {
-            return true;
-        }
-
-        $currentPath = (string)$this->getPath();
-        return str_contains($currentPath, 'payment/gerencianet_');
     }
 
     private function debug(array $data): void
@@ -327,5 +280,15 @@ class CertificadoUpload extends File
             $this->_gHelper->logger($data);
         } catch (Exception $e) {
         }
+    }
+
+    private function debugOnce(array $data): void
+    {
+        if (!$this->debugEnabled || self::$debugOnce) {
+            return;
+        }
+
+        self::$debugOnce = true;
+        $this->debug($data);
     }
 }
