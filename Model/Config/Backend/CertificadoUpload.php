@@ -23,7 +23,7 @@ class CertificadoUpload extends File
     private $_gHelper;
 
     /** @var DirectoryList */
-    protected $_directoryList;
+    protected $_dir;
 
     public function __construct(
         Context $context,
@@ -33,13 +33,13 @@ class CertificadoUpload extends File
         UploaderFactory $uploaderFactory,
         RequestDataInterface $requestData,
         Filesystem $filesystem,
-        Data $gHelper,
-        DirectoryList $directoryList,
         AbstractResource $resource = null,
-        AbstractDb $resourceCollection = null
+        AbstractDb $resourceCollection = null,
+        Data $gHelper,
+        DirectoryList $dl
     ) {
         $this->_gHelper = $gHelper;
-        $this->_directoryList = $directoryList;
+        $this->_dir = $dl;
 
         parent::__construct(
             $context,
@@ -59,21 +59,25 @@ class CertificadoUpload extends File
         $name = "certificate.pem";
 
         if ($this->_gHelper->isPixActive()) {
-            $uploadDir = $this->_directoryList->getPath('media') . "/test/";
+            $value = $this->getValue();
             $fileData = $this->getFileData();
+            $uploadDir = $this->_dir->getPath('media') . "/test/";
+
+            $fileName = is_array($value) ? ($value['name'] ?? '') : (string)$value;
+            $fileName = (string)$fileName;
 
             if (!empty($fileData['tmp_name'])) {
-                $fileName = $fileData['name'] ?? "";
-                $extName = $this->getExtensionName($fileName);
+                $originalName = $fileData['name'] ?? $fileName;
+                $extName = $this->getExtensionName((string)$originalName);
 
                 if ($this->isValidExtension($extName)) {
                     throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
                 }
 
-                $fileId = $this->getScope() . '[' . $this->getScopeId() . '][groups][gerencianet_pix][fields][certificado][value]';
+                $fileId = 'groups[gerencianet_pix][fields][certificado][value]';
 
                 $this->makeUpload($fileId, $uploadDir);
-                $this->convertToPem($fileName, $uploadDir, $name);
+                $this->convertToPem((string)$originalName, $uploadDir, $name);
             }
 
             $this->removeUnusedCertificates($uploadDir);
@@ -143,8 +147,9 @@ class CertificadoUpload extends File
     public function getExtensionName($fileName): string
     {
         if (empty($fileName)) {
-            return "";
+            return '';
         }
+
         return strtolower(pathinfo((string)$fileName, PATHINFO_EXTENSION));
     }
 
