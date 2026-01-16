@@ -63,29 +63,42 @@ class CertificadoUpload extends File
         $name = "certificate.pem";
         if ($this->_gHelper->isPixActive()) {
             $value = $this->getValue();
-            $file = $this->getFileData();
+            $fileData = $this->getFileData();
             $uploadDir = $this->_directoryList->getPath('media') . "/test/";
             $fileName = (isset($value['name']) && is_string($value['name'])) ? $value['name'] : "";
 
-            if ($this->isInsert($file)) {
+            // Se existe um arquivo sendo enviado (isInsert)
+            if ($this->isInsert($fileData)) {
                 $extName = $this->getExtensionName($fileName);
                 if ($this->isValidExtension($extName)) {
                     throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
                 }
 
-                $this->makeUpload($file, $uploadDir);
+                // Em vez de passar o array de dados, passamos o identificador do campo no $_FILES
+                // O Magento File Backend geralmente usa o path completo do campo como ID
+                $fileId = $this->getName();
+
+                $this->makeUpload($fileId, $uploadDir);
                 $this->convertToPem($fileName, $uploadDir, $name);
             }
             $this->removeUnusedCertificates($uploadDir);
         }
+
+        // Mantém o valor salvo no banco como 'certificate.pem'
         $this->setValue($name);
         return parent::beforeSave();
     }
 
-    public function makeUpload($file, $uploadDir)
+    /**
+     * @param string|array $fileId
+     * @param string $uploadDir
+     * @throws LocalizedException
+     */
+    public function makeUpload($fileId, $uploadDir)
     {
         try {
-            $uploader = $this->_uploaderFactory->create(['fileId' => $file]);
+            // O Factory busca no array $_FILES usando a chave $fileId
+            $uploader = $this->_uploaderFactory->create(['fileId' => $fileId]);
             $uploader->setAllowedExtensions($this->getAllowedExtensions());
             $uploader->setAllowRenameFiles(true);
             $uploader->addValidateCallback('size', $this, 'validateMaxSize');
