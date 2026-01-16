@@ -6,7 +6,7 @@ use Exception;
 use Gerencianet\Magento2\Helper\Data;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Event\Observer;
-use Efi\EfiPay;;
+use Efi\EfiPay;
 
 use Magento\Sales\Model\Order;
 

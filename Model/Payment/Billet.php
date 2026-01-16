@@ -4,7 +4,7 @@ namespace Gerencianet\Magento2\Model\Payment;
 
 use DateTime;
 use Exception;
-use Efi\EfiPay;;
+use Efi\EfiPay;
 
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
 use Magento\Store\Model\StoreManagerInterface;

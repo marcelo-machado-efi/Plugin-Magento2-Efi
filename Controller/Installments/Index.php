@@ -10,9 +10,9 @@ use Magento\Framework\App\Action\Context;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\App\Action\HttpGetActionInterface;
-use Efi\Exception\EfiException;;
+use Efi\Exception\EfiException;
 
-use Efi\EfiPay;;
+use Efi\EfiPay;
 
 class Index extends Action implements HttpGetActionInterface
 {

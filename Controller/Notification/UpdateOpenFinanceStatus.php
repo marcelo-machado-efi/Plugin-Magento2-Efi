@@ -3,11 +3,9 @@
 namespace Gerencianet\Magento2\Controller\Notification;
 
 use Exception;
-use Efi\EfiPay;;
-
+use Efi\EfiPay;
 use Gerencianet\Magento2\Helper\Data;
-use Efi\Exception\EfiException;;
-
+use Efi\Exception\EfiException;
 use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\Request\InvalidRequestException;
@@ -20,11 +18,9 @@ use Magento\Framework\Filesystem\DirectoryList;
 
 class UpdateOpenFinanceStatus extends Action implements CsrfAwareActionInterface
 {
-
 	const ACEITO = 'aceito';
 	const REJEITADO = 'rejeitado';
 	const EXPIRADO = 'expirado';
-
 
 	/** @var Data */
 	protected $_helperData;
@@ -35,17 +31,20 @@ class UpdateOpenFinanceStatus extends Action implements CsrfAwareActionInterface
 	/** @var SearchCriteriaBuilder */
 	protected $_searchCriteriaBuilder;
 
+	/** @var DirectoryList */
+	protected $_directoryList;
+
 	public function __construct(
 		Context $context,
 		Data $helperData,
 		SearchCriteriaBuilder $searchCriteriaBuilder,
 		OrderRepositoryInterface $orderRepository,
-		DirectoryList $dl
+		DirectoryList $directoryList
 	) {
 		$this->_helperData = $helperData;
 		$this->_orderRepository = $orderRepository;
 		$this->_searchCriteriaBuilder = $searchCriteriaBuilder;
-		$this->_dir = $dl;
+		$this->_directoryList = $directoryList;
 
 		parent::__construct($context);
 	}
@@ -53,8 +52,11 @@ class UpdateOpenFinanceStatus extends Action implements CsrfAwareActionInterface
 	public function execute()
 	{
 		try {
-			$body = json_decode($this->getRequest()->getContent(), true);
+			$content = $this->getRequest()->getContent();
+			$body = json_decode((string)$content, true);
+
 			$this->_helperData->logger($body);
+
 			if (isset($body['identificadorPagamento'])) {
 				$identificadorPagamento = $body['identificadorPagamento'];
 				$status = $body['status'];
@@ -63,25 +65,21 @@ class UpdateOpenFinanceStatus extends Action implements CsrfAwareActionInterface
 					->addFilter('gerencianet_transaction_id', $identificadorPagamento, 'eq')
 					->create();
 
-				$collection = $this->_orderRepository->getList($searchCriteria);
+				$list = $this->_orderRepository->getList($searchCriteria);
+				$orders = $list->getItems();
 
-				/** @var Order */
-				foreach ($collection as $order) {
+				/** @var Order $order */
+				foreach ($orders as $order) {
 					switch ($status) {
-						case self::ACEITO: {
-								$order->setState(Order::STATE_PROCESSING);
-								$order->setStatus(Order::STATE_PROCESSING);
+						case self::ACEITO:
+							$order->setState(Order::STATE_PROCESSING);
+							$order->setStatus(Order::STATE_PROCESSING);
+							break;
 
-								break;
-							}
-						case self::REJEITADO: {
-								$order->cancel();
-								break;
-							}
-						case self::EXPIRADO: {
-								$order->cancel();
-								break;
-							}
+						case self::REJEITADO:
+						case self::EXPIRADO:
+							$order->cancel();
+							break;
 					}
 					$this->_orderRepository->save($order);
 				}
@@ -92,13 +90,13 @@ class UpdateOpenFinanceStatus extends Action implements CsrfAwareActionInterface
 		}
 	}
 
-	/** * @inheritDoc */
+	/** @inheritDoc */
 	public function createCsrfValidationException(RequestInterface $request): ?InvalidRequestException
 	{
 		return null;
 	}
 
-	/** * @inheritDoc */
+	/** @inheritDoc */
 	public function validateForCsrf(RequestInterface $request): ?bool
 	{
 		return true;

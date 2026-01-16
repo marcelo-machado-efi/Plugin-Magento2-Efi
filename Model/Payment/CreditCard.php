@@ -3,10 +3,10 @@
 namespace Gerencianet\Magento2\Model\Payment;
 
 use Exception;
-use Efi\Exception\EfiException;;
+use Efi\Exception\EfiException;
 
 use Magento\Payment\Model\Method\AbstractMethod;
-use Efi\EfiPay;;
+use Efi\EfiPay;
 
 use Magento\Framework\Model\Context;
 use Magento\Framework\Registry;

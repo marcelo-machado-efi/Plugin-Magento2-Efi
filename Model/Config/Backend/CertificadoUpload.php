@@ -19,9 +19,11 @@ use Magento\Framework\Filesystem\DirectoryList;
 
 class CertificadoUpload extends File
 {
-
     /** @var Data */
     private $_gHelper;
+
+    /** @var DirectoryList */
+    protected $_directoryList;
 
     public function __construct(
         Context $context,
@@ -31,14 +33,13 @@ class CertificadoUpload extends File
         UploaderFactory $uploaderFactory,
         RequestDataInterface $requestData,
         Filesystem $filesystem,
-        AbstractResource $resource = null,
-        AbstractDb $resourceCollection = null,
         Data $gHelper,
-        DirectoryList $dl
+        DirectoryList $directoryList,
+        AbstractResource $resource = null,
+        AbstractDb $resourceCollection = null
     ) {
-
         $this->_gHelper = $gHelper;
-        $this->_dir = $dl;
+        $this->_directoryList = $directoryList;
 
         parent::__construct(
             $context,
@@ -54,22 +55,19 @@ class CertificadoUpload extends File
     }
 
     /**
-     * Save uploaded file before saving config value
-     *
      * @return $this
-     * @throws LocalizedException
+     * @throws Exception
      */
-    public function beforeSave() {
-
+    public function beforeSave()
+    {
         $name = "certificate.pem";
         if ($this->_gHelper->isPixActive()) {
             $value = $this->getValue();
             $file = $this->getFileData();
-            $uploadDir = $this->_dir->getPath('media') . "/test/";
-            $fileName = isset($value['name']) ? $value['name'] : "";
+            $uploadDir = $this->_directoryList->getPath('media') . "/test/";
+            $fileName = (isset($value['name']) && is_string($value['name'])) ? $value['name'] : "";
 
             if ($this->isInsert($file)) {
-
                 $extName = $this->getExtensionName($fileName);
                 if ($this->isValidExtension($extName)) {
                     throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
@@ -81,12 +79,14 @@ class CertificadoUpload extends File
             $this->removeUnusedCertificates($uploadDir);
         }
         $this->setValue($name);
+        return parent::beforeSave();
     }
 
-    public function makeUpload($file, $uploadDir) {
+    public function makeUpload($file, $uploadDir)
+    {
         try {
             $uploader = $this->_uploaderFactory->create(['fileId' => $file]);
-            $uploader->setAllowedExtensions($this->_getAllowedExtensions());
+            $uploader->setAllowedExtensions($this->getAllowedExtensions());
             $uploader->setAllowRenameFiles(true);
             $uploader->addValidateCallback('size', $this, 'validateMaxSize');
             $uploader->save($uploadDir);
@@ -95,18 +95,25 @@ class CertificadoUpload extends File
         }
     }
 
-    public function convertToPem($fileName, $uploadDir, $newFilename) {
-        $certificate = array();
-        $pkcs12 = file_get_contents($uploadDir . $fileName);
+    public function convertToPem($fileName, $uploadDir, $newFilename)
+    {
+        $certificate = [];
+        $filePath = $uploadDir . $fileName;
 
-        if ($this->getExtensionName($fileName) == "p12") {
+        if (!file_exists($filePath)) {
+            return;
+        }
+
+        $pkcs12 = file_get_contents($filePath);
+
+        if ($this->getExtensionName($fileName) === "p12") {
             if (openssl_pkcs12_read($pkcs12, $certificate, '')) {
-                $pem = $cert = $extracert1 = $extracert2 =  null;
+                $pem = $cert = $extracert1 = $extracert2 = "";
 
                 if (isset($certificate['pkey'])) {
                     openssl_pkey_export($certificate['pkey'], $pem, null);
                 }
-                
+
                 if (isset($certificate['cert'])) {
                     openssl_x509_export($certificate['cert'], $cert);
                 }
@@ -114,7 +121,7 @@ class CertificadoUpload extends File
                 if (isset($certificate['extracerts'][0])) {
                     openssl_x509_export($certificate['extracerts'][0], $extracert1);
                 }
-                
+
                 if (isset($certificate['extracerts'][1])) {
                     openssl_x509_export($certificate['extracerts'][1], $extracert2);
                 }
@@ -127,29 +134,37 @@ class CertificadoUpload extends File
         }
     }
 
-    public function getAllowedExtensions(): array { return ['pem', 'p12']; }
-
-    public function isInsert($file): bool { return (!empty($file)); }
-
-    public function getExtensionName($fileName): string {
-        $extNames = explode('.', $fileName);
-        return $extNames[count($extNames) - 1];
+    public function getAllowedExtensions(): array
+    {
+        return ['pem', 'p12'];
     }
 
-    public function isValidExtension($extName): bool {
+    public function isInsert($file): bool
+    {
+        return (!empty($file));
+    }
+
+    public function getExtensionName($fileName): string
+    {
+        if (empty($fileName)) return "";
+        return strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+    }
+
+    public function isValidExtension($extName): bool
+    {
         return !empty($extName) && !in_array($extName, $this->getAllowedExtensions());
     }
 
-    public function isCertificadoInserido($file, $fileName): bool {
-        return !empty($file) && !empty($fileName);
-    }
+    public function removeUnusedCertificates($uploadDir)
+    {
+        if (!is_dir($uploadDir)) return;
 
-    public function removeUnusedCertificates($uploadDir) {
         $files = array_diff(scandir($uploadDir), array('.', '..', 'certificate.pem'));
 
         foreach ($files as $f) {
-            if (is_file("$uploadDir/$f")) {
-                unlink("$uploadDir/$f");
+            $path = $uploadDir . DIRECTORY_SEPARATOR . $f;
+            if (is_file($path)) {
+                unlink($path);
             }
         }
     }

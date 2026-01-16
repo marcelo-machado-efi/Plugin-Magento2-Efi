@@ -6,7 +6,7 @@ use Magento\Framework\View\Element\Template;
 use Magento\Framework\View\Element\Template\Context;
 use Magento\Framework\App\Filesystem\DirectoryList;
 use Efi\Exception\EfiException;
-use Efi\EfiPay;;
+use Efi\EfiPay;
 
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
 

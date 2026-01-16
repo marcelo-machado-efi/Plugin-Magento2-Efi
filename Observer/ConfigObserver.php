@@ -3,8 +3,7 @@
 namespace Gerencianet\Magento2\Observer;
 
 use Exception;
-use Efi\EfiPay;;
-
+use Efi\EfiPay;
 use Gerencianet\Magento2\Helper\Data;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
@@ -14,12 +13,11 @@ use Magento\Framework\Filesystem\DirectoryList;
 
 class ConfigObserver implements ObserverInterface
 {
-
     /** @var Data */
     private $_helperData;
 
     /** @var StoreManagerInterface */
-    private $_storeMagerInterface;
+    private $_storeManagerInterface;
 
     /** @var Config */
     private $_resourceConfig;
@@ -34,7 +32,7 @@ class ConfigObserver implements ObserverInterface
         DirectoryList $dl
     ) {
         $this->_helperData = $helperData;
-        $this->_storeMagerInterface = $storeManager;
+        $this->_storeManagerInterface = $storeManager;
         $this->_resourceConfig = $resourceConfig;
         $this->_dir = $dl;
     }
@@ -53,23 +51,25 @@ class ConfigObserver implements ObserverInterface
     {
         $this->defaultName($observer);
 
-        $skipMtls = (bool)$this->_helperData->getSkipMtls() ? 'false' : 'true';
+        // PHP 8.2+: Simplificação de lógica booleana para string
+        $skipMtls = $this->_helperData->getSkipMtls() ? 'false' : 'true';
 
         $options = $this->_helperData->getOptions();
         $options['certificate'] = $this->getCertificadoPath();
-        $options['headers'] = array('x-skip-mtls-checking' => $skipMtls);
+        $options['headers'] = ['x-skip-mtls-checking' => $skipMtls];
 
         $params = ['chave' => $this->_helperData->getChavePix()];
         $body = ['webhookUrl' => $this->getNotificationUrlPix()];
 
         try {
             $api = new EfiPay($options);
-            $pix = $api->pixConfigWebhook($params, $body);
+            $api->pixConfigWebhook($params, $body);
         } catch (Exception $e) {
             $this->_helperData->logger($e->getMessage());
-            throw new Exception($e->getMessage());
+            throw new Exception($e->getMessage(), 0, $e);
         }
     }
+
     public function cadastraWebhookOpenFinance(Observer $observer)
     {
         $this->defaultName($observer);
@@ -78,30 +78,24 @@ class ConfigObserver implements ObserverInterface
         $options['certificate'] = $this->getCertificadoPath();
 
         $callbackUrl = $this->getNotificationUrlOpenFinance();
-
         $redirectUrl = $this->getRedirectnUrlOpenFinance();
-
-        $hash = hash('sha256', $options['clientId']);
+        $hash = hash('sha256', (string)($options['clientId'] ?? ''));
 
         $webhookSecurity = ["type" => "hmac", "hash" => $hash];
 
         $body = [
-
             'webhookURL' => $callbackUrl,
-
             'redirectURL' => $redirectUrl,
-
             'webhookSecurity' => $webhookSecurity,
             'processPayment' => 'async'
-
         ];
 
         try {
             $api = new EfiPay($options);
-            $openFinance = $api->ofConfigUpdate($params = [], $body);
+            $api->ofConfigUpdate([], $body);
         } catch (Exception $e) {
             $this->_helperData->logger($e->getMessage());
-            throw new Exception($e->getMessage());
+            throw new Exception($e->getMessage(), 0, $e);
         }
     }
 
@@ -112,27 +106,38 @@ class ConfigObserver implements ObserverInterface
         $scope = "default";
         $scopeId = 0;
 
-        if (!empty($this->getCertificadoPath()) && in_array($path, $observer->getEvent()->getData()['changed_paths'])) {
+        $eventData = $observer->getEvent()->getData();
+        $changedPaths = $eventData['changed_paths'] ?? [];
+
+        if ($this->getCertificadoPath() !== "" && in_array($path, $changedPaths)) {
             $this->_resourceConfig->saveConfig($path, $value, $scope, $scopeId);
         }
     }
 
+    /**
+     * Retorna o path ou string vazia se não existir para respeitar tipagem string do PHP 8
+     */
     public function getCertificadoPath(): string
     {
-        $certificadopath = $this->_dir->getPath('media') . "/test/" . $this->_helperData->getPixCert();
-        return file_exists($certificadopath) ? $certificadopath : false;
+        $certName = $this->_helperData->getPixCert();
+        if (!$certName) return "";
+
+        $certificadopath = $this->_dir->getPath('media') . "/test/" . $certName;
+        return file_exists($certificadopath) ? $certificadopath : "";
     }
 
     public function getNotificationUrlPix(): string
     {
-        return $this->_storeMagerInterface->getStore()->getBaseUrl() . 'gerencianet/notification/updatepixstatus';
+        return $this->_storeManagerInterface->getStore()->getBaseUrl() . 'gerencianet/notification/updatepixstatus';
     }
+
     public function getNotificationUrlOpenFinance(): string
     {
-        return $this->_storeMagerInterface->getStore()->getBaseUrl() . 'gerencianet/notification/updateopenfinancestatus';
+        return $this->_storeManagerInterface->getStore()->getBaseUrl() . 'gerencianet/notification/updateopenfinancestatus';
     }
+
     public function getRedirectnUrlOpenFinance(): string
     {
-        return $this->_storeMagerInterface->getStore()->getBaseUrl() . 'gerencianet/redirect/redirectopenfinance';
+        return $this->_storeManagerInterface->getStore()->getBaseUrl() . 'gerencianet/redirect/redirectopenfinance';
     }
 }

@@ -3,7 +3,7 @@
 namespace Gerencianet\Magento2\Controller\Notification;
 
 use Exception;
-use Efi\EfiPay;;
+use Efi\EfiPay;
 
 use Gerencianet\Magento2\Helper\Data;
 use Magento\Framework\App\Action\Action;
