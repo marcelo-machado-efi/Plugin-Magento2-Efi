@@ -54,22 +54,14 @@ class CertificadoUpload extends File
         );
     }
 
-    /**
-     * @return $this
-     * @throws Exception
-     */
     public function beforeSave()
     {
         $name = "certificate.pem";
 
         if ($this->_gHelper->isPixActive()) {
             $uploadDir = $this->_directoryList->getPath('media') . "/test/";
-
-            // Padrão Magento: Recupera o valor e os dados do arquivo do objeto
-            $value = $this->getValue();
             $fileData = $this->getFileData();
 
-            // O identificador oficial no $_FILES para campos de sistema é o 'tmp_name' do array de dados
             if (!empty($fileData['tmp_name'])) {
                 $fileName = $fileData['name'] ?? "";
                 $extName = $this->getExtensionName($fileName);
@@ -78,9 +70,9 @@ class CertificadoUpload extends File
                     throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
                 }
 
-                // Passamos o array completo do arquivo ou o path do input
-                // No Magento 2.4.x+, passar o array contendo a estrutura de $_FILES é o mais seguro
-                $this->makeUpload($fileData, $uploadDir);
+                $fileId = $this->getScope() . '[' . $this->getScopeId() . '][groups][gerencianet_pix][fields][certificado][value]';
+
+                $this->makeUpload($fileId, $uploadDir);
                 $this->convertToPem($fileName, $uploadDir, $name);
             }
 
@@ -91,18 +83,9 @@ class CertificadoUpload extends File
         return parent::beforeSave();
     }
 
-    /**
-     * @param array|string $fileId
-     * @param string $uploadDir
-     * @return void
-     * @throws LocalizedException
-     */
     public function makeUpload($fileId, $uploadDir)
     {
         try {
-            /** * Documentação Magento: A Factory aceita o array do arquivo vindo de getFileData()
-             * que contém as chaves 'tmp_name', 'name', etc.
-             */
             $uploader = $this->_uploaderFactory->create(['fileId' => $fileId]);
             $uploader->setAllowedExtensions($this->getAllowedExtensions());
             $uploader->setAllowRenameFiles(true);
@@ -159,7 +142,9 @@ class CertificadoUpload extends File
 
     public function getExtensionName($fileName): string
     {
-        if (empty($fileName)) return "";
+        if (empty($fileName)) {
+            return "";
+        }
         return strtolower(pathinfo((string)$fileName, PATHINFO_EXTENSION));
     }
 
@@ -170,7 +155,9 @@ class CertificadoUpload extends File
 
     public function removeUnusedCertificates($uploadDir)
     {
-        if (!is_dir($uploadDir)) return;
+        if (!is_dir($uploadDir)) {
+            return;
+        }
 
         $files = array_diff(scandir($uploadDir), array('.', '..', 'certificate.pem'));
 
