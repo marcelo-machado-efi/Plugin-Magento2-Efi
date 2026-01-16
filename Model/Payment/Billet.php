@@ -1,9 +1,11 @@
 <?php
+
 namespace Gerencianet\Magento2\Model\Payment;
 
 use DateTime;
 use Exception;
-use Gerencianet\Gerencianet;
+use Efi\EfiPay;;
+
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Sales\Model\Order;
@@ -24,7 +26,8 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Quote\Api\Data\CartInterface;
 use Magento\Checkout\Model\Session;
 
-class Billet extends AbstractMethod {
+class Billet extends AbstractMethod
+{
 
   /**
    * @var string
@@ -55,7 +58,7 @@ class Billet extends AbstractMethod {
     AbstractDb $resourceCollection = null,
     array $data = []
   ) {
-   
+
     parent::__construct(
       $context,
       $registry,
@@ -73,7 +76,8 @@ class Billet extends AbstractMethod {
     $this->_checkoutSession = $checkoutSession;
   }
 
-  public function order(InfoInterface $payment, $amount) {
+  public function order(InfoInterface $payment, $amount)
+  {
     try {
 
       $paymentInfo = $payment->getAdditionalInformation();
@@ -86,7 +90,7 @@ class Billet extends AbstractMethod {
       $this->_helperData->logger(json_encode($billingaddress->getStreet()));
 
       $options = $this->_helperData->getOptions();
-      
+
       $data = [];
 
       $i = 0;
@@ -109,12 +113,12 @@ class Billet extends AbstractMethod {
 
       $shippingAddress = $order->getShippingAddress();
 
-      
+
       if (isset($shippingAddress)) {
         $data['shippings'][0]['name'] = $shippingAddress->getFirstname() . ' ' . $shippingAddress->getLastname();
         $data['shippings'][0]['value'] = $order->getShippingAmount() * 100;
       }
-      
+
       $data['metadata']['notification_url'] = $this->_storeMagerInterface->getStore()->getBaseUrl() . 'gerencianet/notification/updatestatus';
 
       $data['payment']['banking_billet']['customer']['name'] = $order->getCustomerFirstname() . ' ' . $order->getCustomerLastname();
@@ -141,7 +145,7 @@ class Billet extends AbstractMethod {
         }
         $data['payment']['banking_billet']['customer']['address']['state'] = $billingaddress->getRegionCode();
       } catch (Exception $e) {
-       
+
         throw new Exception("Erro, por favor verifique seus campos de endereço!", 1);
       }
 
@@ -156,7 +160,7 @@ class Billet extends AbstractMethod {
       $message = $this->_helperData->getBilletInstructions();
       if ($message !== "") {
         $data['payment']['banking_billet']['message'] = $message;
-      } 
+      }
 
       $billetConfig = $this->_helperData->getBilletSettings();
       if ($billetConfig['fine'] != "") {
@@ -165,8 +169,8 @@ class Billet extends AbstractMethod {
       if ($billetConfig['interest'] != "") {
         $data['payment']['banking_billet']['configurations']['interest'] = $billetConfig['interest'];
       }
-      
-      $api = new Gerencianet($options);
+
+      $api = new EfiPay($options);
 
       $payCharge = $api->createOneStepCharge([], $data);
       $order->setCustomerTaxvat($paymentInfo['cpfCustomer']);
@@ -178,7 +182,8 @@ class Billet extends AbstractMethod {
     }
   }
 
-  public function assignData(DataObject $data) {
+  public function assignData(DataObject $data)
+  {
     $info = $this->getInfoInstance();
     $info->setAdditionalInformation('cpfCustomer', $data['additional_data']['cpfCustomer'] ?? null);
     $info->setAdditionalInformation('companyName', $data['additional_data']['companyName'] ?? null);
@@ -186,28 +191,29 @@ class Billet extends AbstractMethod {
     return $this;
   }
 
-  public function isAvailable(CartInterface $quote = null) {
+  public function isAvailable(CartInterface $quote = null)
+  {
     $total = $this->_checkoutSession->getQuote()->getGrandTotal();
-    return $this->_helperData->isBilletActive() ;
+    return $this->_helperData->isBilletActive();
   }
 
   public function formatPhone($phone)
-    {
-        $formatedPhone = preg_replace('/[^0-9]/', '', $phone);
-        $matches = [];
+  {
+    $formatedPhone = preg_replace('/[^0-9]/', '', $phone);
+    $matches = [];
 
-        if (strlen($formatedPhone) == 13) {
-            preg_match('/^([0-9]{2})([0-9]{2})([0-9]{4,5})([0-9]{4})$/', $formatedPhone, $matches);
-            if ($matches) {
-                return '+'.$matches[1] . ' ('.$matches[2] . ')' . $matches[3] . '-' . $matches[4] ;
-            }
-        } else {
-            preg_match('/^([0-9]{2})([0-9]{4,5})([0-9]{4})$/', $formatedPhone, $matches);
-            if ($matches) {
-                return $matches[1].$matches[2].$matches[3] ;
-            }
-        }
-
-        return $formatedPhone;
+    if (strlen($formatedPhone) == 13) {
+      preg_match('/^([0-9]{2})([0-9]{2})([0-9]{4,5})([0-9]{4})$/', $formatedPhone, $matches);
+      if ($matches) {
+        return '+' . $matches[1] . ' (' . $matches[2] . ')' . $matches[3] . '-' . $matches[4];
+      }
+    } else {
+      preg_match('/^([0-9]{2})([0-9]{4,5})([0-9]{4})$/', $formatedPhone, $matches);
+      if ($matches) {
+        return $matches[1] . $matches[2] . $matches[3];
+      }
     }
+
+    return $formatedPhone;
+  }
 }

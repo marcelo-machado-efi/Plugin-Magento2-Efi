@@ -3,9 +3,11 @@
 namespace Gerencianet\Magento2\Model\Payment;
 
 use Exception;
-use Gerencianet\Exception\GerencianetException;
+use Efi\Exception\EfiException;;
+
 use Magento\Payment\Model\Method\AbstractMethod;
-use Gerencianet\Gerencianet;
+use Efi\EfiPay;;
+
 use Magento\Framework\Model\Context;
 use Magento\Framework\Registry;
 use Magento\Framework\Api\ExtensionAttributesFactory;
@@ -53,8 +55,8 @@ class CreditCard extends AbstractMethod
         AbstractDb $resourceCollection = null,
         array $data = []
     ) {
-        
-        
+
+
         parent::__construct(
             $context,
             $registry,
@@ -162,7 +164,7 @@ class CreditCard extends AbstractMethod
 
             $data['payment']['credit_card']['payment_token'] = $paymentInfo['cardHash'];
 
-            $api = new Gerencianet($options);
+            $api = new EfiPay($options);
             $pay_charge = $api->createOneStepCharge([], $data);
             $order->setCustomerTaxvat($paymentInfo['cpfCustomer']);
             $order->setGerencianetTransactionId($pay_charge['data']['charge_id']);
@@ -197,12 +199,12 @@ class CreditCard extends AbstractMethod
         if (strlen($formatedPhone) == 13) {
             preg_match('/^([0-9]{2})([0-9]{2})([0-9]{4,5})([0-9]{4})$/', $formatedPhone, $matches);
             if ($matches) {
-                return '+'.$matches[1] . ' ('.$matches[2] . ')' . $matches[3] . '-' . $matches[4] ;
+                return '+' . $matches[1] . ' (' . $matches[2] . ')' . $matches[3] . '-' . $matches[4];
             }
         } else {
             preg_match('/^([0-9]{2})([0-9]{4,5})([0-9]{4})$/', $formatedPhone, $matches);
             if ($matches) {
-                return $matches[1].$matches[2].$matches[3] ;
+                return $matches[1] . $matches[2] . $matches[3];
             }
         }
 

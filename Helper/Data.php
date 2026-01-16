@@ -43,14 +43,14 @@ class Data extends AbstractHelper
 		$options = [];
 		if ($this->getConfig('payment/gerencianet_configuracoes/ambiente') == 'developer') {
 			$options = [
-				'client_id' => $this->getConfig('payment/gerencianet_configuracoes/gerencianet_credenciais_develop/client_id'),
-				'client_secret' => $this->getConfig('payment/gerencianet_configuracoes/gerencianet_credenciais_develop/client_secret'),
+				'clientId' => $this->getConfig('payment/gerencianet_configuracoes/gerencianet_credenciais_develop/client_id'),
+				'clientSecret' => $this->getConfig('payment/gerencianet_configuracoes/gerencianet_credenciais_develop/client_secret'),
 				'sandbox' => true
 			];
 		} else if ($this->getConfig('payment/gerencianet_configuracoes/ambiente') == 'production') {
 			$options = [
-				'client_id' => $this->getConfig('payment/gerencianet_configuracoes/gerencianet_credenciais_production/client_id'),
-				'client_secret' => $this->getConfig('payment/gerencianet_configuracoes/gerencianet_credenciais_production/client_secret'),
+				'clientId' => $this->getConfig('payment/gerencianet_configuracoes/gerencianet_credenciais_production/client_id'),
+				'clientSecret' => $this->getConfig('payment/gerencianet_configuracoes/gerencianet_credenciais_production/client_secret'),
 				'sandbox' => false
 			];
 		}

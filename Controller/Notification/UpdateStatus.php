@@ -3,7 +3,8 @@
 namespace Gerencianet\Magento2\Controller\Notification;
 
 use Exception;
-use Gerencianet\Gerencianet;
+use Efi\EfiPay;;
+
 use Gerencianet\Magento2\Helper\Data;
 use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\RequestInterface;
@@ -14,7 +15,8 @@ use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 
-class UpdateStatus extends Action implements CsrfAwareActionInterface {
+class UpdateStatus extends Action implements CsrfAwareActionInterface
+{
 
 	const PAID = 'paid';
 	const UNPAID = 'unpaid';
@@ -46,14 +48,15 @@ class UpdateStatus extends Action implements CsrfAwareActionInterface {
 		parent::__construct($context);
 	}
 
-	public function execute() {
+	public function execute()
+	{
 		try {
 			$body = $this->getRequest()->getPostValue();
 			$this->_helperData->logger($body);
 
 			$params = ["token" => $body['notification']];
 			$options = $this->_helperData->getOptions();
-			$api = new Gerencianet($options);
+			$api = new EfiPay($options);
 
 			$chargeNotification = $api->getNotification($params, []);
 
@@ -122,12 +125,14 @@ class UpdateStatus extends Action implements CsrfAwareActionInterface {
 	}
 
 	/** * @inheritDoc */
-	public function createCsrfValidationException(RequestInterface $request): ?InvalidRequestException {
+	public function createCsrfValidationException(RequestInterface $request): ?InvalidRequestException
+	{
 		return null;
 	}
 
 	/** * @inheritDoc */
-	public function validateForCsrf(RequestInterface $request): ?bool {
+	public function validateForCsrf(RequestInterface $request): ?bool
+	{
 		return true;
 	}
 }

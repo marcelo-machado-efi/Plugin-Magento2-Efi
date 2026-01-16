@@ -3,7 +3,8 @@
 namespace Gerencianet\Magento2\Model\Payment;
 
 use Exception;
-use Gerencianet\Gerencianet;
+use Efi\EfiPay;;
+
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Sales\Model\Order;
@@ -62,7 +63,7 @@ class OpenFinance extends AbstractMethod
 		AbstractDb $resourceCollection = null,
 		array $data = []
 	) {
-		
+
 		parent::__construct(
 			$context,
 			$registry,
@@ -87,7 +88,7 @@ class OpenFinance extends AbstractMethod
 		try {
 
 			$paymentInfo = $payment->getAdditionalInformation();
-			
+
 			/** @var Order */
 			$order = $payment->getOrder();
 			$incrementId = $order->getIncrementId();
@@ -105,7 +106,7 @@ class OpenFinance extends AbstractMethod
 			}
 
 			$options = $this->_helperData->getOptions();
-			$options['pix_cert'] = $certificadoPix;
+			$options['certificate'] = $certificadoPix;
 			$options["headers"] = [
 				"x-idempotency-key" => uniqid($this->uniqidReal(), true)
 			];
@@ -122,21 +123,19 @@ class OpenFinance extends AbstractMethod
 			$data['favorecido']['contaBanco']['agencia'] = "0001";
 			$data['favorecido']['contaBanco']['documento'] =  preg_replace("/[^0-9]/", "", $this->_helperData->getDocumento());
 			$data['favorecido']['contaBanco']['nome'] = $this->_helperData->getNome();
-			$data['favorecido']['contaBanco']['conta'] = str_replace(' ', '', $this->_helperData->getNumeroConta()) ;
+			$data['favorecido']['contaBanco']['conta'] = str_replace(' ', '', $this->_helperData->getNumeroConta());
 			$data['favorecido']['contaBanco']['tipoConta'] = "CACC";
 			$data['valor'] = number_format($amount, 2, ".", "");
 			$data['idProprio'] = $incrementId;
- 
-			$api = new Gerencianet($options);
-			$of = $api->ofStartPixPayment([], $data);
-			
-			
-			
-			
-            $order->setGerencianetTransactionId($of['identificadorPagamento']);
-            $order->setGerencianetRedirectUrl($of['redirectURI']);
 
-			
+			$api = new EfiPay($options);
+			$of = $api->ofStartPixPayment([], $data);
+
+
+
+
+			$order->setGerencianetTransactionId($of['identificadorPagamento']);
+			$order->setGerencianetRedirectUrl($of['redirectURI']);
 		} catch (Exception $e) {
 			throw new LocalizedException(__($e->getMessage()));
 		}
@@ -157,7 +156,8 @@ class OpenFinance extends AbstractMethod
 		return $this->_helperData->isOpenFinanceActive() ? true : false;
 	}
 
-	public function uniqidReal($lenght = 30) {
+	public function uniqidReal($lenght = 30)
+	{
 		if (function_exists("random_bytes")) {
 			$bytes = random_bytes(ceil($lenght / 2));
 		} elseif (function_exists("openssl_random_pseudo_bytes")) {

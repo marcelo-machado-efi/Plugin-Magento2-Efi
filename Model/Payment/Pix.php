@@ -3,7 +3,8 @@
 namespace Gerencianet\Magento2\Model\Payment;
 
 use Exception;
-use Gerencianet\Gerencianet;
+use Efi\EfiPay;;
+
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Sales\Model\Order;
@@ -48,7 +49,7 @@ class Pix extends AbstractMethod
 		AbstractDb $resourceCollection = null,
 		array $data = []
 	) {
-		
+
 		parent::__construct(
 			$context,
 			$registry,
@@ -88,13 +89,13 @@ class Pix extends AbstractMethod
 			}
 
 			$options = $this->_helperData->getOptions();
-			$options['pix_cert'] = $certificadoPix;
+			$options['certificate'] = $certificadoPix;
 
 			$data = [];
 			$data['calendario']['expiracao'] = 3600;
 			if ($paymentInfo['documentType'] == "CPF") {
 				$data['devedor']['cpf'] = $paymentInfo['cpfCustomer'];
-			} else if ($paymentInfo['documentType'] == "CNPJ") { 
+			} else if ($paymentInfo['documentType'] == "CNPJ") {
 				$data['devedor']['cnpj'] = $paymentInfo['cpfCustomer'];
 				$data['devedor']['nome'] = $paymentInfo['companyName'];
 			}
@@ -105,8 +106,8 @@ class Pix extends AbstractMethod
 				['nome' => 'Pagamento em', 'valor' => $storeName],
 				['nome' => 'Número do Pedido', 'valor' => $incrementId]
 			];
- 
-			$api = new Gerencianet($options);
+
+			$api = new EfiPay($options);
 			$pix = $api->pixCreateImmediateCharge([], $data);
 
 			$params = [
@@ -114,7 +115,7 @@ class Pix extends AbstractMethod
 			];
 
 			$qrcode = $api->pixGenerateQRCode($params);
-            $order->setCustomerTaxvat($paymentInfo['cpfCustomer']);
+			$order->setCustomerTaxvat($paymentInfo['cpfCustomer']);
 			$order->setGerencianetTransactionId($pix['txid']);
 			$order->setGerencianetChavePix($qrcode['qrcode']);
 			$order->setGerencianetQrcodePix($qrcode['imagemQrcode']);

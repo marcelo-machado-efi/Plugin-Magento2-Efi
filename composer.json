@@ -39,7 +39,7 @@
   "minimum-stability": "stable",
   "require": {
     "php": ">=7.3.0",
-    "gerencianet/gerencianet-sdk-php": " ~5.0"
+    "efipay/sdk-php-apis-efi": "^1.17"
   },
   "autoload": {
     "files": [

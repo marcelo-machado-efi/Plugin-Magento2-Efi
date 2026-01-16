@@ -5,8 +5,9 @@ namespace Gerencianet\Magento2\Block\Checkout;
 use Magento\Framework\View\Element\Template;
 use Magento\Framework\View\Element\Template\Context;
 use Magento\Framework\App\Filesystem\DirectoryList;
-use Gerencianet\Exception\GerencianetException;
-use Gerencianet\Gerencianet;
+use Efi\Exception\EfiException;
+use Efi\EfiPay;;
+
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
 
 class OpenFinanceParticipants extends Template
@@ -49,19 +50,19 @@ class OpenFinanceParticipants extends Template
 
     public function getParticipants()
     {
-        
+
         $certificadoPix = $this->getCertificadoPixPath();
-       
+
 
         $options = $this->_helperData->getOptions();
-        $options['pix_cert'] = $certificadoPix;
-        
+        $options['certificate'] = $certificadoPix;
+
         try {
-            $api = Gerencianet::getInstance($options);
+            $api = new EfiPay($options);
             $response = $api->ofListParticipants($params = []);
             return $response;
-        } catch (GerencianetException $e) {
-            
+        } catch (EfiException $e) {
+
             return $e->errorDescription;
         }
     }

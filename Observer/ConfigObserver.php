@@ -3,7 +3,8 @@
 namespace Gerencianet\Magento2\Observer;
 
 use Exception;
-use Gerencianet\Gerencianet;
+use Efi\EfiPay;;
+
 use Gerencianet\Magento2\Helper\Data;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
@@ -55,14 +56,14 @@ class ConfigObserver implements ObserverInterface
         $skipMtls = (bool)$this->_helperData->getSkipMtls() ? 'false' : 'true';
 
         $options = $this->_helperData->getOptions();
-        $options['pix_cert'] = $this->getCertificadoPath();
+        $options['certificate'] = $this->getCertificadoPath();
         $options['headers'] = array('x-skip-mtls-checking' => $skipMtls);
 
         $params = ['chave' => $this->_helperData->getChavePix()];
         $body = ['webhookUrl' => $this->getNotificationUrlPix()];
 
         try {
-            $api = Gerencianet::getInstance($options);
+            $api = new EfiPay($options);
             $pix = $api->pixConfigWebhook($params, $body);
         } catch (Exception $e) {
             $this->_helperData->logger($e->getMessage());
@@ -74,13 +75,13 @@ class ConfigObserver implements ObserverInterface
         $this->defaultName($observer);
 
         $options = $this->_helperData->getOptions();
-        $options['pix_cert'] = $this->getCertificadoPath();
+        $options['certificate'] = $this->getCertificadoPath();
 
         $callbackUrl = $this->getNotificationUrlOpenFinance();
 
         $redirectUrl = $this->getRedirectnUrlOpenFinance();
 
-        $hash = hash('sha256', $options['client_id']);
+        $hash = hash('sha256', $options['clientId']);
 
         $webhookSecurity = ["type" => "hmac", "hash" => $hash];
 
@@ -96,7 +97,7 @@ class ConfigObserver implements ObserverInterface
         ];
 
         try {
-            $api = new Gerencianet($options);
+            $api = new EfiPay($options);
             $openFinance = $api->ofConfigUpdate($params = [], $body);
         } catch (Exception $e) {
             $this->_helperData->logger($e->getMessage());

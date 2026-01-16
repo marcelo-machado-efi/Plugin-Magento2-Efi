@@ -10,10 +10,12 @@ use Magento\Framework\App\Action\Context;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\App\Action\HttpGetActionInterface;
-use Gerencianet\Exception\GerencianetException;
-use Gerencianet\Gerencianet;
+use Efi\Exception\EfiException;;
 
-class Index extends Action implements HttpGetActionInterface {
+use Efi\EfiPay;;
+
+class Index extends Action implements HttpGetActionInterface
+{
 
   /** @var Data */
   private $_helperData;
@@ -26,19 +28,20 @@ class Index extends Action implements HttpGetActionInterface {
    * @param Data $helperData
    * @param JsonFactory $jsonResultFactory
    */
-  public function __construct( 
-      Context $context, 
-      Data $helperData, 
-      JsonFactory $jsonResultFactory 
+  public function __construct(
+    Context $context,
+    Data $helperData,
+    JsonFactory $jsonResultFactory
   ) {
     $this->_helperData = $helperData;
     $this->_jsonResultFactory = $jsonResultFactory;
-    
+
     parent::__construct($context);
   }
 
   /** @inheritdoc */
-  public function execute() {
+  public function execute()
+  {
 
     $brand = $this->getRequest()->getParam('brand');
     $total = $this->getRequest()->getParam('total');
@@ -47,20 +50,18 @@ class Index extends Action implements HttpGetActionInterface {
     $params = ['total' => $total, 'brand' => $brand];
 
     try {
-        $api = new Gerencianet($options);
-        $response = $api->getInstallments($params, []);
-    
-        $r = $this->_jsonResultFactory->create();
-        $r->setData($response);
+      $api = new EfiPay($options);
+      $response = $api->getInstallments($params, []);
 
-        return $r;
+      $r = $this->_jsonResultFactory->create();
+      $r->setData($response);
 
-    } catch (GerencianetException $e) {
-        print_r($e->code . " - " . $e->error . "<br>");
-        print_r($e->errorDescription);
-
+      return $r;
+    } catch (EfiException $e) {
+      print_r($e->code . " - " . $e->error . "<br>");
+      print_r($e->errorDescription);
     } catch (Exception $e) {
-        print_r($e->getMessage());
+      print_r($e->getMessage());
     }
   }
 }

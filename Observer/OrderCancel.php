@@ -6,19 +6,23 @@ use Exception;
 use Gerencianet\Magento2\Helper\Data;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Event\Observer;
-use Gerencianet\Gerencianet;
+use Efi\EfiPay;;
+
 use Magento\Sales\Model\Order;
 
-class OrderCancel implements ObserverInterface {
+class OrderCancel implements ObserverInterface
+{
 
     /** @var Data */
     protected $_helperData;
 
-    public function __construct(Data $helperData) {
+    public function __construct(Data $helperData)
+    {
         $this->_helperData = $helperData;
     }
 
-    public function execute(Observer $observer) {
+    public function execute(Observer $observer)
+    {
         /** @var Order */
         $order = $observer->getEvent()->getOrder();
         $payment = $order->getPayment();
@@ -30,7 +34,7 @@ class OrderCancel implements ObserverInterface {
                 'id' => $chargeId
             ];
             try {
-                $api = new Gerencianet($options);
+                $api = new EfiPay($options);
                 $charge = $api->cancelCharge($params, []);
                 $order->addStatusToHistory(
                     $order->getStatus(),
