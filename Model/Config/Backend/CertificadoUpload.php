@@ -61,43 +61,48 @@ class CertificadoUpload extends File
     public function beforeSave()
     {
         $name = "certificate.pem";
+
         if ($this->_gHelper->isPixActive()) {
+            $uploadDir = $this->_directoryList->getPath('media') . "/test/";
+
+            // Padrão Magento: Recupera o valor e os dados do arquivo do objeto
             $value = $this->getValue();
             $fileData = $this->getFileData();
-            $uploadDir = $this->_directoryList->getPath('media') . "/test/";
-            $fileName = (isset($value['name']) && is_string($value['name'])) ? $value['name'] : "";
 
-            // Se existe um arquivo sendo enviado (isInsert)
-            if ($this->isInsert($fileData)) {
+            // O identificador oficial no $_FILES para campos de sistema é o 'tmp_name' do array de dados
+            if (!empty($fileData['tmp_name'])) {
+                $fileName = $fileData['name'] ?? "";
                 $extName = $this->getExtensionName($fileName);
+
                 if ($this->isValidExtension($extName)) {
                     throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
                 }
 
-                // Em vez de passar o array de dados, passamos o identificador do campo no $_FILES
-                // O Magento File Backend geralmente usa o path completo do campo como ID
-                $fileId = $this->getName();
-
-                $this->makeUpload($fileId, $uploadDir);
+                // Passamos o array completo do arquivo ou o path do input
+                // No Magento 2.4.x+, passar o array contendo a estrutura de $_FILES é o mais seguro
+                $this->makeUpload($fileData, $uploadDir);
                 $this->convertToPem($fileName, $uploadDir, $name);
             }
+
             $this->removeUnusedCertificates($uploadDir);
         }
 
-        // Mantém o valor salvo no banco como 'certificate.pem'
         $this->setValue($name);
         return parent::beforeSave();
     }
 
     /**
-     * @param string|array $fileId
+     * @param array|string $fileId
      * @param string $uploadDir
+     * @return void
      * @throws LocalizedException
      */
     public function makeUpload($fileId, $uploadDir)
     {
         try {
-            // O Factory busca no array $_FILES usando a chave $fileId
+            /** * Documentação Magento: A Factory aceita o array do arquivo vindo de getFileData()
+             * que contém as chaves 'tmp_name', 'name', etc.
+             */
             $uploader = $this->_uploaderFactory->create(['fileId' => $fileId]);
             $uploader->setAllowedExtensions($this->getAllowedExtensions());
             $uploader->setAllowRenameFiles(true);
@@ -152,15 +157,10 @@ class CertificadoUpload extends File
         return ['pem', 'p12'];
     }
 
-    public function isInsert($file): bool
-    {
-        return (!empty($file));
-    }
-
     public function getExtensionName($fileName): string
     {
         if (empty($fileName)) return "";
-        return strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+        return strtolower(pathinfo((string)$fileName, PATHINFO_EXTENSION));
     }
 
     public function isValidExtension($extName): bool
