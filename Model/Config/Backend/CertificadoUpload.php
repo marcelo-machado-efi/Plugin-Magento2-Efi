@@ -57,26 +57,32 @@ class CertificadoUpload extends File
     public function beforeSave()
     {
         $name = 'certificate.pem';
+        $uploadDir = $this->_dir->getPath('media') . '/test/';
+        $certificatePath = $uploadDir . $name;
 
-        if ($this->_gHelper->isPixActive()) {
-            $uploadDir = $this->_dir->getPath('media') . '/test/';
-            $fileData = $this->getFileData();
+        $pixActive = (bool)$this->_gHelper->isPixActive();
+        $openFinanceActive = (bool)$this->_gHelper->isOpenFinanceActive();
 
-            if (!empty($fileData['tmp_name'])) {
-                $originalName = (string)($fileData['name'] ?? '');
-                $extName = $this->getExtensionName($originalName);
+        $fileData = $this->getFileData();
+        $hasUpload = !empty($fileData['tmp_name']);
 
-                if ($this->isValidExtension($extName)) {
-                    throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
-                }
+        if ($hasUpload) {
+            $originalName = (string)($fileData['name'] ?? '');
+            $extName = $this->getExtensionName($originalName);
 
-                $fileId = $this->buildFileIdFromPath();
-
-                $this->makeUpload($fileId, $uploadDir);
-                $this->convertToPem($originalName, $uploadDir, $name);
+            if ($this->isValidExtension($extName)) {
+                throw new Exception("Problema ao gravar esta configuração: Extensão Inválida! $extName", 1);
             }
 
+            $fileId = $this->buildFileIdFromPath();
+
+            $this->makeUpload($fileId, $uploadDir);
+            $this->convertToPem($originalName, $uploadDir, $name);
             $this->removeUnusedCertificates($uploadDir);
+        }
+
+        if (($pixActive || $openFinanceActive) && !file_exists($certificatePath)) {
+            throw new LocalizedException(__('É necessário realizar o upload do certificado (.pem ou .p12) para utilizar Pix e/ou Open Finance.'));
         }
 
         $this->setValue($name);
