@@ -19,7 +19,6 @@ use Magento\MediaStorage\Model\File\UploaderFactory;
 class CertificadoUpload extends File
 {
     private const CERTIFICATE_FILENAME = 'certificate.pem';
-
     private const FILE_ID_PIX = 'groups[gerencianet_pix][fields][certificado][value]';
     private const FILE_ID_OPEN_FINANCE = 'groups[gerencianet_open_finance][fields][certificado][value]';
 
@@ -61,9 +60,18 @@ class CertificadoUpload extends File
         $needsCertificate = $pixActive || $openFinanceActive;
 
         $fileId = $this->detectUploadedFileId();
+        $hasAnyUploadedFile = $this->hasAnyUploadedFile();
 
-        if ($fileId !== null) {
+        if ($fileId !== null || $hasAnyUploadedFile) {
+            $this->ensureDirExists($uploadDir);
             $this->clearDirectory($uploadDir);
+            $this->setValue('');
+
+            if ($fileId === null) {
+                throw new LocalizedException(
+                    __('Arquivo enviado, mas não foi possível identificar o campo de upload.')
+                );
+            }
 
             $uploadedName = $this->uploadAndGetUploadedFilename($fileId, $uploadDir);
             $this->convertToPem($uploadedName, $uploadDir, self::CERTIFICATE_FILENAME);
@@ -106,6 +114,36 @@ class CertificadoUpload extends File
     {
         $tmpName = $this->getNestedFilesValue($fileId, 'tmp_name');
         return is_string($tmpName) && $tmpName !== '';
+    }
+
+    private function hasAnyUploadedFile(): bool
+    {
+        if (!isset($_FILES) || !is_array($_FILES)) {
+            return false;
+        }
+
+        $stack = [$_FILES];
+
+        while ($stack) {
+            $current = array_pop($stack);
+
+            if (!is_array($current)) {
+                continue;
+            }
+
+            foreach ($current as $key => $value) {
+                if (is_array($value)) {
+                    $stack[] = $value;
+                    continue;
+                }
+
+                if ($key === 'tmp_name' && is_string($value) && $value !== '') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function getNestedFilesValue(string $fileId, string $leafKey)
@@ -177,24 +215,16 @@ class CertificadoUpload extends File
 
     private function clearDirectory(string $uploadDir): void
     {
-        $uploadDir = (string)$uploadDir;
-
         if (!is_dir($uploadDir)) {
             return;
         }
 
-        $entries = scandir($uploadDir);
-        if (!is_array($entries)) {
-            return;
-        }
-
-        foreach ($entries as $entry) {
+        foreach (scandir($uploadDir) as $entry) {
             if ($entry === '.' || $entry === '..') {
                 continue;
             }
 
             $path = $uploadDir . DIRECTORY_SEPARATOR . $entry;
-
             if (is_file($path)) {
                 @unlink($path);
             }
@@ -244,7 +274,6 @@ class CertificadoUpload extends File
                 }
 
                 file_put_contents($uploadDir . $newFilename, $cert . $pem . $extracert1 . $extracert2);
-                return;
             }
 
             return;
@@ -271,8 +300,6 @@ class CertificadoUpload extends File
 
     public function removeUnusedCertificates($uploadDir)
     {
-        $uploadDir = (string)$uploadDir;
-
         if (!is_dir($uploadDir)) {
             return;
         }
