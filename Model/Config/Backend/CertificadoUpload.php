@@ -2,35 +2,25 @@
 
 namespace Gerencianet\Magento2\Model\Config\Backend;
 
-use Exception;
 use Magento\Config\Model\Config\Backend\File;
-use Magento\Config\Model\Config\Backend\File\RequestData\RequestDataInterface;
-use Magento\Framework\App\Cache\TypeListInterface;
-use Magento\Framework\App\Config\ScopeConfigInterface;
-use Magento\Framework\Data\Collection\AbstractDb;
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Filesystem;
 use Magento\Framework\Filesystem\DirectoryList;
-use Magento\Framework\Model\Context;
-use Magento\Framework\Model\ResourceModel\AbstractResource;
-use Magento\Framework\Registry;
-use Magento\MediaStorage\Model\File\UploaderFactory;
 
 class CertificadoUpload extends File
 {
     private DirectoryList $dir;
 
     public function __construct(
-        Context $context,
-        Registry $registry,
-        ScopeConfigInterface $config,
-        TypeListInterface $cacheTypeList,
-        UploaderFactory $uploaderFactory,
-        RequestDataInterface $requestData,
-        Filesystem $filesystem,
+        \Magento\Framework\Model\Context $context,
+        \Magento\Framework\Registry $registry,
+        \Magento\Framework\App\Config\ScopeConfigInterface $config,
+        \Magento\Framework\App\Cache\TypeListInterface $cacheTypeList,
+        \Magento\MediaStorage\Model\File\UploaderFactory $uploaderFactory,
+        \Magento\Config\Model\Config\Backend\File\RequestData\RequestDataInterface $requestData,
+        \Magento\Framework\Filesystem $filesystem,
         DirectoryList $dir,
-        AbstractResource $resource = null,
-        AbstractDb $resourceCollection = null
+        \Magento\Framework\Model\ResourceModel\AbstractResource $resource = null,
+        \Magento\Framework\Data\Collection\AbstractDb $resourceCollection = null
     ) {
         $this->dir = $dir;
 
@@ -57,15 +47,10 @@ class CertificadoUpload extends File
 
         $file = $this->getFileData();
 
-        if (!empty($file)) {
+        if (!empty($file) && is_array($file)) {
             $this->ensureDirExists($uploadDir);
             $this->clearDirectory($uploadDir);
             $this->setValue('');
-
-            $uploadedName = $this->uploadAndGetUploadedFilename((string)$file['name'], $uploadDir);
-            $this->removeUnusedFiles($uploadDir, $uploadedName);
-
-            $this->setValue($uploadedName);
             return parent::beforeSave();
         }
 
@@ -87,31 +72,6 @@ class CertificadoUpload extends File
     {
         $path = 'payment/' . $groupId . '/active';
         return (bool)$this->_config->getValue($path, $this->getScope(), $this->getScopeId());
-    }
-
-    private function uploadAndGetUploadedFilename(string $fileId, string $uploadDir): string
-    {
-        try {
-            $this->ensureDirExists($uploadDir);
-
-            $uploader = $this->_uploaderFactory->create(['fileId' => $fileId]);
-            $uploader->setAllowedExtensions($this->_getAllowedExtensions());
-            $uploader->setAllowRenameFiles(true);
-            $uploader->addValidateCallback('size', $this, 'validateMaxSize');
-
-            $result = $uploader->save($uploadDir);
-
-            $fileName = is_array($result) ? (string)($result['file'] ?? '') : '';
-            if ($fileName === '') {
-                throw new LocalizedException(__('Falha ao salvar o arquivo do certificado.'));
-            }
-
-            return ltrim($fileName, '/\\');
-        } catch (LocalizedException $e) {
-            throw $e;
-        } catch (Exception $e) {
-            throw new LocalizedException(__('%1', $e->getMessage()));
-        }
     }
 
     private function ensureDirExists(string $uploadDir): void
@@ -155,38 +115,6 @@ class CertificadoUpload extends File
         }
     }
 
-    private function removeUnusedFiles(string $uploadDir, string $keepFilename): void
-    {
-        if (!is_dir($uploadDir)) {
-            return;
-        }
-
-        $items = scandir($uploadDir);
-        if (!is_array($items)) {
-            return;
-        }
-
-        foreach ($items as $item) {
-            if ($item === '.' || $item === '..') {
-                continue;
-            }
-
-            $path = $uploadDir . DIRECTORY_SEPARATOR . $item;
-
-            if (is_dir($path)) {
-                continue;
-            }
-
-            if ($item === $keepFilename) {
-                continue;
-            }
-
-            if (is_file($path)) {
-                @unlink($path);
-            }
-        }
-    }
-
     private function hasAnyCertificateFile(string $uploadDir): bool
     {
         if (!is_dir($uploadDir)) {
@@ -216,10 +144,5 @@ class CertificadoUpload extends File
         }
 
         return false;
-    }
-
-    public function getAllowedExtensions(): array
-    {
-        return ['pem', 'p12'];
     }
 }
