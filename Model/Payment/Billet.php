@@ -135,6 +135,7 @@ class Billet extends AbstractMethod
       $data['payment']['banking_billet']['customer']['email'] = $billingaddress->getEmail();
       try {
         $street = $billingaddress->getStreet();
+        $this->_helperData->logger('Endereço do cliente: ' . json_encode($street));
         $data['payment']['banking_billet']['customer']['address']['street'] = $street[0];
         $data['payment']['banking_billet']['customer']['address']['number'] = $street[1];
         if (isset($street[3])) {
