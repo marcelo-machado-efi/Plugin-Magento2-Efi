@@ -5,7 +5,7 @@ namespace Gerencianet\Magento2\Model\Payment;
 use DateTime;
 use Exception;
 use Efi\EfiPay;
-
+use Saade\Cep;
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Sales\Model\Order;
@@ -28,19 +28,12 @@ use Magento\Checkout\Model\Session;
 
 class Billet extends AbstractMethod
 {
-
-  /**
-   * @var string
-   */
   protected $_code = 'gerencianet_boleto';
 
-  /** @var GerencianetHelper */
   protected $_helperData;
 
-  /** @var StoreManagerInterface */
   protected $_storeMagerInterface;
 
-  /** @var Session */
   protected $_checkoutSession;
 
   public function __construct(
@@ -58,7 +51,6 @@ class Billet extends AbstractMethod
     AbstractDb $resourceCollection = null,
     array $data = []
   ) {
-
     parent::__construct(
       $context,
       $registry,
@@ -71,6 +63,7 @@ class Billet extends AbstractMethod
       $resourceCollection,
       $data
     );
+
     $this->_helperData = $helperData;
     $this->_storeMagerInterface = $storeManager;
     $this->_checkoutSession = $checkoutSession;
@@ -79,7 +72,6 @@ class Billet extends AbstractMethod
   public function order(InfoInterface $payment, $amount)
   {
     try {
-
       $paymentInfo = $payment->getAdditionalInformation();
       $days = $this->_scopeConfig->getValue('payment/gerencianet_boleto/validade');
       $date = new DateTime("+$days days");
@@ -87,14 +79,13 @@ class Billet extends AbstractMethod
       /** @var Order */
       $order = $payment->getOrder();
       $billingaddress = $order->getBillingAddress();
-      $this->_helperData->logger(json_encode($billingaddress->getStreet()));
 
       $options = $this->_helperData->getOptions();
-
       $data = [];
 
       $i = 0;
       $items = $order->getAllItems();
+
       /** @var Product */
       foreach ($items as $item) {
         if ($item->getProductType() != 'configurable') {
@@ -104,6 +95,7 @@ class Billet extends AbstractMethod
           } else {
             $price = $item->getPrice();
           }
+
           $data['items'][$i]['name'] = $item->getName();
           $data['items'][$i]['value'] = $price * 100;
           $data['items'][$i]['amount'] = $item->getQtyOrdered();
@@ -112,8 +104,6 @@ class Billet extends AbstractMethod
       }
 
       $shippingAddress = $order->getShippingAddress();
-
-
       if (isset($shippingAddress)) {
         $data['shippings'][0]['name'] = $shippingAddress->getFirstname() . ' ' . $shippingAddress->getLastname();
         $data['shippings'][0]['value'] = $order->getShippingAmount() * 100;
@@ -123,28 +113,52 @@ class Billet extends AbstractMethod
 
       $data['payment']['banking_billet']['customer']['name'] = $order->getCustomerFirstname() . ' ' . $order->getCustomerLastname();
 
-      if ($paymentInfo['documentType'] == "CPF") {
-        $data['payment']['banking_billet']['customer']['cpf'] = $paymentInfo['cpfCustomer'];
-      } else if ($paymentInfo['documentType'] == "CNPJ") {
-        $data['payment']['banking_billet']['customer']['juridical_person']['corporate_name'] = $paymentInfo['companyName'];
-        $data['payment']['banking_billet']['customer']['juridical_person']['cnpj'] = $paymentInfo['cpfCustomer'];
+      if (($paymentInfo['documentType'] ?? null) === "CPF") {
+        $data['payment']['banking_billet']['customer']['cpf'] = $paymentInfo['cpfCustomer'] ?? null;
+      } elseif (($paymentInfo['documentType'] ?? null) === "CNPJ") {
+        $data['payment']['banking_billet']['customer']['juridical_person']['corporate_name'] = $paymentInfo['companyName'] ?? null;
+        $data['payment']['banking_billet']['customer']['juridical_person']['cnpj'] = $paymentInfo['cpfCustomer'] ?? null;
       }
 
       $billingAddPhone = $this->formatPhone($billingaddress->getTelephone());
       $data['payment']['banking_billet']['customer']['phone_number'] = $billingAddPhone;
       $data['payment']['banking_billet']['customer']['email'] = $billingaddress->getEmail();
+
       try {
-        $street = $billingaddress->getStreet();
-        $this->_helperData->logger('Endereço do cliente: ' . json_encode($street));
-        $data['payment']['banking_billet']['customer']['address']['street'] = $street[0];
-        $data['payment']['banking_billet']['customer']['address']['number'] = $street[1];
-        if (isset($street[3])) {
-          $data['payment']['banking_billet']['customer']['address']['neighborhood'] = $street[2];
-          $data['payment']['banking_billet']['customer']['address']['complement'] = $street[3];
-        } else {
-          $data['payment']['banking_billet']['customer']['address']['neighborhood'] = $street[2];
+        $zipcodeRaw = (string) $billingaddress->getPostcode();
+        $zipcode = preg_replace('/\D/', '', $zipcodeRaw);
+
+        $streetLines = $billingaddress->getStreet() ?? [];
+        $this->_helperData->logger('Endereço do cliente (street lines): ' . json_encode($streetLines));
+
+        $houseNumber = $this->extractHouseNumberFromStreet($streetLines);
+
+        $cepData = null;
+        if (!empty($zipcode)) {
+          $cepData = Cep::get($zipcode);
         }
-        $data['payment']['banking_billet']['customer']['address']['state'] = $billingaddress->getRegionCode();
+
+        $streetName = !empty($cepData?->street) ? $cepData->street : ($streetLines[0] ?? null);
+        $neighborhood = !empty($cepData?->neighborhood) ? $cepData->neighborhood : ($streetLines[2] ?? null);
+        $city = !empty($cepData?->city) ? $cepData->city : $billingaddress->getCity();
+        $state = !empty($cepData?->state) ? $cepData->state : $billingaddress->getRegionCode();
+        $normalizedZipcode = !empty($cepData?->cep) ? preg_replace('/\D/', '', (string) $cepData->cep) : $zipcode;
+        $complement = $streetLines[3] ?? null;
+
+        if (empty($streetName) || empty($houseNumber) || empty($neighborhood) || empty($city) || empty($state) || empty($normalizedZipcode)) {
+          throw new Exception("Erro, por favor verifique seus campos de endereço!", 1);
+        }
+
+        $data['payment']['banking_billet']['customer']['address']['street'] = $streetName;
+        $data['payment']['banking_billet']['customer']['address']['number'] = $houseNumber;
+        $data['payment']['banking_billet']['customer']['address']['neighborhood'] = $neighborhood;
+        $data['payment']['banking_billet']['customer']['address']['city'] = $city;
+        $data['payment']['banking_billet']['customer']['address']['state'] = $state;
+        $data['payment']['banking_billet']['customer']['address']['zipcode'] = $normalizedZipcode;
+
+        if (!empty($complement)) {
+          $data['payment']['banking_billet']['customer']['address']['complement'] = $complement;
+        }
       } catch (Exception $e) {
         $this->_helperData->logger('Erro no endereço do cliente: ' . $e->getMessage());
         throw new Exception("Erro, por favor verifique seus campos de endereço!", 1);
@@ -164,17 +178,17 @@ class Billet extends AbstractMethod
       }
 
       $billetConfig = $this->_helperData->getBilletSettings();
-      if ($billetConfig['fine'] != "") {
+      if (($billetConfig['fine'] ?? "") !== "") {
         $data['payment']['banking_billet']['configurations']['fine'] = $billetConfig['fine'];
       }
-      if ($billetConfig['interest'] != "") {
+      if (($billetConfig['interest'] ?? "") !== "") {
         $data['payment']['banking_billet']['configurations']['interest'] = $billetConfig['interest'];
       }
 
       $api = new EfiPay($options);
 
       $payCharge = $api->createOneStepCharge([], $data);
-      $order->setCustomerTaxvat($paymentInfo['cpfCustomer']);
+      $order->setCustomerTaxvat($paymentInfo['cpfCustomer'] ?? null);
       $order->setGerencianetCodigoDeBarras($payCharge['data']['barcode']);
       $order->setGerencianetTransactionId($payCharge['data']['charge_id']);
       $order->setGerencianetUrlBoleto($payCharge['data']['pdf']['charge']);
@@ -216,5 +230,22 @@ class Billet extends AbstractMethod
     }
 
     return $formatedPhone;
+  }
+
+  private function extractHouseNumberFromStreet(array $streetLines): string
+  {
+    foreach ($streetLines as $line) {
+      $value = trim((string) $line);
+      if ($value !== '' && preg_match('/^\d+$/', $value)) {
+        return $value;
+      }
+    }
+
+    $fallback = trim((string) ($streetLines[1] ?? ''));
+    if ($fallback !== '' && preg_match('/^\d+$/', $fallback)) {
+      return $fallback;
+    }
+
+    throw new Exception('Número do endereço inválido: informe uma linha contendo somente o número da casa.');
   }
 }
