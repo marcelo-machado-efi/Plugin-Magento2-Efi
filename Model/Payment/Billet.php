@@ -145,7 +145,7 @@ class Billet extends AbstractMethod
         }
         $data['payment']['banking_billet']['customer']['address']['state'] = $billingaddress->getRegionCode();
       } catch (Exception $e) {
-
+        $this->_helperData->logger('Erro no endereço do cliente: ' . $e->getMessage());
         throw new Exception("Erro, por favor verifique seus campos de endereço!", 1);
       }
 
