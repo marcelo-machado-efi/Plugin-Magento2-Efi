@@ -4,6 +4,7 @@ namespace Gerencianet\Magento2\Model\Payment;
 
 use DateTime;
 use Exception;
+use Throwable;
 use Efi\EfiPay;
 use Saade\Cep;
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
@@ -71,6 +72,8 @@ class Billet extends AbstractMethod
 
   public function order(InfoInterface $payment, $amount)
   {
+    $orderIncrementId = null;
+
     try {
       $paymentInfo = $payment->getAdditionalInformation();
       $days = $this->_scopeConfig->getValue('payment/gerencianet_boleto/validade');
@@ -78,6 +81,8 @@ class Billet extends AbstractMethod
 
       /** @var Order */
       $order = $payment->getOrder();
+      $orderIncrementId = $order ? $order->getIncrementId() : null;
+
       $billingaddress = $order->getBillingAddress();
 
       $options = $this->_helperData->getOptions();
@@ -159,8 +164,14 @@ class Billet extends AbstractMethod
         if (!empty($complement)) {
           $data['payment']['banking_billet']['customer']['address']['complement'] = $complement;
         }
-      } catch (Exception $e) {
-        $this->_helperData->logger('Erro no endereço do cliente: ' . $e->getMessage());
+      } catch (Throwable $e) {
+        $this->_helperData->logger(json_encode([
+          'scope' => 'billet_address',
+          'order_id' => $orderIncrementId,
+          'error' => $e->getMessage(),
+          'file' => $e->getFile() . ':' . $e->getLine(),
+          'trace' => $e->getTraceAsString()
+        ]));
         throw new Exception("Erro, por favor verifique seus campos de endereço!", 1);
       }
 
@@ -187,12 +198,31 @@ class Billet extends AbstractMethod
 
       $api = new EfiPay($options);
 
-      $payCharge = $api->createOneStepCharge([], $data);
+      try {
+        $payCharge = $api->createOneStepCharge([], $data);
+      } catch (Throwable $e) {
+        $this->_helperData->logger(json_encode([
+          'scope' => 'billet_create_charge',
+          'order_id' => $orderIncrementId,
+          'error' => $e->getMessage(),
+          'file' => $e->getFile() . ':' . $e->getLine(),
+          'trace' => $e->getTraceAsString()
+        ]));
+        throw new Exception('Erro ao criar a cobrança. Verifique o log para mais detalhes.', 1);
+      }
+
       $order->setCustomerTaxvat($paymentInfo['cpfCustomer'] ?? null);
-      $order->setGerencianetCodigoDeBarras($payCharge['data']['barcode']);
-      $order->setGerencianetTransactionId($payCharge['data']['charge_id']);
-      $order->setGerencianetUrlBoleto($payCharge['data']['pdf']['charge']);
-    } catch (Exception $e) {
+      $order->setGerencianetCodigoDeBarras($payCharge['data']['barcode'] ?? null);
+      $order->setGerencianetTransactionId($payCharge['data']['charge_id'] ?? null);
+      $order->setGerencianetUrlBoleto($payCharge['data']['pdf']['charge'] ?? null);
+    } catch (Throwable $e) {
+      $this->_helperData->logger(json_encode([
+        'scope' => 'billet_order',
+        'order_id' => $orderIncrementId,
+        'error' => $e->getMessage(),
+        'file' => $e->getFile() . ':' . $e->getLine(),
+        'trace' => $e->getTraceAsString()
+      ]));
       throw new LocalizedException(__($e->getMessage()));
     }
   }
