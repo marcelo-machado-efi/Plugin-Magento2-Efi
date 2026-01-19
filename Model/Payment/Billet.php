@@ -109,10 +109,13 @@ class Billet extends AbstractMethod
       }
 
       $shippingAddress = $order->getShippingAddress();
-      if (isset($shippingAddress)) {
-        $data['shippings'][0]['name'] = $shippingAddress->getFirstname() . ' ' . $shippingAddress->getLastname();
-        $data['shippings'][0]['value'] = $order->getShippingAmount() * 100;
+      $shippingAmount = (float) $order->getShippingAmount();
+
+      if ($shippingAddress && $shippingAmount > 0) {
+        $data['shippings'][0]['name'] = $order->getShippingDescription() ?: 'Frete';
+        $data['shippings'][0]['value'] = $shippingAmount * 100;
       }
+
 
       $data['metadata']['notification_url'] = $this->_storeMagerInterface->getStore()->getBaseUrl() . 'gerencianet/notification/updatestatus';
 
