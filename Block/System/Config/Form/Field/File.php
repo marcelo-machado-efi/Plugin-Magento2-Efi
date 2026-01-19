@@ -7,23 +7,13 @@ use Magento\Framework\Filesystem\DirectoryList;
 
 class File extends MageFile
 {
-    /**
-     * @var DirectoryList
-     */
-    protected $directoryList;
+    protected DirectoryList $directoryList;
 
-    /**
-     * @param \Magento\Framework\Data\Form\Element\Factory $factoryElement
-     * @param \Magento\Framework\Data\Form\Element\CollectionFactory $factoryCollection
-     * @param \Magento\Framework\Escaper $escaper
-     * @param DirectoryList $directoryList
-     * @param array $data
-     */
     public function __construct(
         \Magento\Framework\Data\Form\Element\Factory $factoryElement,
         \Magento\Framework\Data\Form\Element\CollectionFactory $factoryCollection,
         \Magento\Framework\Escaper $escaper,
-        DirectoryList $directoryList, // Movido para antes do argumento opcional
+        DirectoryList $directoryList,
         array $data = []
     ) {
         $this->directoryList = $directoryList;
@@ -32,20 +22,15 @@ class File extends MageFile
 
     protected function _getDeleteCheckbox()
     {
-        $html = '';
         $nomeArquivo = (string)$this->getValue();
+        $nomeArquivo = ltrim($nomeArquivo, '/\\');
 
-        // Uso da propriedade explicitamente declarada
-        $filepath = $this->directoryList->getPath("media") . "/test/certificate.pem";
+        $filepath = rtrim($this->directoryList->getPath('media'), '/') . '/test/' . $nomeArquivo;
 
-        if (file_exists($filepath) && $nomeArquivo) {
-            $color = '#006400';
-            $html .= '<div><span style="color:' . $color . '">Há um certificado salvo: ' . $nomeArquivo . '</span></div>';
-        } else {
-            $color = '#8b0000';
-            $html .= '<div><span style="color:' . $color . '">Você não possui um certificado!</span></div>';
+        if ($nomeArquivo !== '' && is_file($filepath)) {
+            return '<div><span style="color:#006400">Há um certificado salvo: ' . $nomeArquivo . '</span></div>';
         }
 
-        return $html;
+        return '<div><span style="color:#8b0000">Você não possui um certificado!</span></div>';
     }
 }
