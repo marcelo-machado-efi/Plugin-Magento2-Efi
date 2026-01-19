@@ -6,7 +6,7 @@ use DateTime;
 use Exception;
 use Throwable;
 use Efi\EfiPay;
-use Saade\Cep;
+use Saade\Cep\Cep;
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Sales\Model\Order;
