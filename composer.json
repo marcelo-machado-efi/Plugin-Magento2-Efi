@@ -38,9 +38,9 @@
   ],
   "minimum-stability": "stable",
   "require": {
-    "php": ">=7.3.0",
+    "php": "^8.1",
     "efipay/sdk-php-apis-efi": "^1.17",
-    "saeed/saeed-cep-php": "^1.0"
+    "saade/cep-php": "^1.1"
   },
   "autoload": {
     "files": [
