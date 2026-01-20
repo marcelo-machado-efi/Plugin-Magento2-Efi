@@ -124,7 +124,7 @@ class OpenFinance extends AbstractMethod
 			$data['favorecido']['contaBanco']['documento'] =  preg_replace("/[^0-9]/", "", $this->_helperData->getDocumento());
 			$data['favorecido']['contaBanco']['nome'] = $this->_helperData->getNome();
 			$data['favorecido']['contaBanco']['conta'] = str_replace(' ', '', $this->_helperData->getNumeroConta());
-			$data['favorecido']['contaBanco']['tipoConta'] = "CACC";
+			$data['favorecido']['contaBanco']['tipoConta'] = "TRAN";
 			$data['valor'] = number_format($amount, 2, ".", "");
 			$data['idProprio'] = $incrementId;
 
