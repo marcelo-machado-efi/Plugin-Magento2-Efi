@@ -55,16 +55,13 @@ define([
 			},
 
 			initialize: function () {
-
 				var self = this;
 				this._super();
 
 				const identificadorConta = window.checkoutConfig.payment.cc.identificadorConta;
 				const url = window.checkoutConfig.payment.cc.urlGerencianet;
 
-				//Set credit card number to credit card data object
 				this.creditCardNumber.subscribe(function (value) {
-
 					if (value == "" || value == null) {
 						return false;
 					}
@@ -74,7 +71,34 @@ define([
 					if (result.isPotentiallyValid && result.isValid) {
 						function handleInstallments(result) {
 							var total = quote.totals().grand_total * 100;
-							var ccbrand = String(result.card.type || result.card.title || "").toLowerCase();
+
+							var mapBrand = function (codeOrName) {
+								var raw = String(codeOrName || "").trim();
+								var upper = raw.toUpperCase();
+
+								var map = {
+									"VI": "visa",
+									"VISA": "visa",
+
+									"MC": "mastercard",
+									"MASTERCARD": "mastercard",
+									"MASTER": "mastercard",
+
+									"AE": "amex",
+									"AMEX": "amex",
+									"AMERICANEXPRESS": "amex",
+
+									"ELO": "elo",
+
+									"HC": "hipercard",
+									"HIPERCARD": "hipercard",
+								};
+
+								return map[upper] || raw;
+							};
+
+							var brandSource = result.card ? (result.card.type || result.card.title || "") : "";
+							var ccbrand = String(mapBrand(brandSource) || "").toLowerCase();
 
 							fetch(`/gerencianet/installments/index?total=${total}&brand=${ccbrand}`)
 								.then((response) => response.json())
@@ -141,7 +165,6 @@ define([
 					}
 				});
 
-				//Set expiration year to credit card data object
 				this.creditCardExpYear.subscribe(function (value) {
 					if (isGenerateCardHash()) {
 						self.getCardHash(identificadorConta, url);
@@ -149,7 +172,6 @@ define([
 					creditCardData.expirationYear = value;
 				});
 
-				//Set expiration month to credit card data object
 				this.creditCardExpMonth.subscribe(function (value) {
 					if (isGenerateCardHash()) {
 						self.getCardHash(identificadorConta, url);
@@ -157,7 +179,6 @@ define([
 					creditCardData.expirationMonth = value;
 				});
 
-				//Set cvv code to credit card data objtotalect
 				this.creditCardVerificationNumber.subscribe(function (value) {
 					if (isGenerateCardHash()) {
 						self.getCardHash(identificadorConta, url);
@@ -246,7 +267,6 @@ define([
 							"HIPERCARD": "hipercard",
 						};
 
-
 						return map[upper] || raw;
 					};
 
@@ -254,7 +274,7 @@ define([
 						? (creditCardData.creditCard.type || creditCardData.creditCard.title || "")
 						: "";
 
-					var brand = mapBrand(brandSource);
+					var brand = String(mapBrand(brandSource) || "").toLowerCase();
 
 					var number = String(creditCardData.creditCardNumber || "").replace(/\D/g, "");
 					var cvv = String(creditCardData.cvvCode || "").replace(/\D/g, "");
