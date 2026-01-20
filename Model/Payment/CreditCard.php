@@ -25,10 +25,12 @@ use Magento\Store\Model\StoreManagerInterface;
 use Magento\Quote\Api\Data\CartInterface;
 use Magento\Checkout\Model\Session;
 
-
 class CreditCard extends AbstractMethod
 {
 
+    /**
+     * @var string
+     */
     protected $_code = 'gerencianet_cc';
 
     /** @var GerencianetHelper */
@@ -55,7 +57,6 @@ class CreditCard extends AbstractMethod
         AbstractDb $resourceCollection = null,
         array $data = []
     ) {
-
 
         parent::__construct(
             $context,
@@ -112,20 +113,6 @@ class CreditCard extends AbstractMethod
             if (isset($shippingAddress)) {
                 $data['shippings'][0]['name'] = $shippingAddress->getFirstname() . ' ' . $shippingAddress->getLastname();
                 $data['shippings'][0]['value'] = $order->getShippingAmount() * 100;
-
-                $street = $shippingAddress->getStreet();
-                $data['payment']['credit_card']['customer']['address']['street'] = $street[0];
-                $data['payment']['credit_card']['customer']['address']['number'] = $street[1];
-                if (isset($street[3])) {
-                    $data['payment']['credit_card']['customer']['address']['complement'] = $street[2];
-                    $data['payment']['credit_card']['customer']['address']['neighborhood'] = $street[3];
-                } else {
-                    $data['payment']['credit_card']['customer']['address']['neighborhood'] = $street[2];
-                }
-                $cep = preg_replace('/[^0-9]/', '', $shippingAddress->getPostcode());
-                $data['payment']['credit_card']['customer']['address']['zipcode'] = $cep;
-                $data['payment']['credit_card']['customer']['address']['city'] = $shippingAddress->getCity();
-                $data['payment']['credit_card']['customer']['address']['state'] = $shippingAddress->getRegionCode();
             }
 
             $data['payment']['credit_card']['customer']['name'] = $order->getCustomerFirstname() . ' ' . $order->getCustomerLastname();
@@ -140,20 +127,6 @@ class CreditCard extends AbstractMethod
 
             $billingAddPhone = $this->formatPhone($billingaddress->getTelephone());
             $data['payment']['credit_card']['customer']['phone_number'] = $paymentInfo['phone'] ?? $billingAddPhone;
-
-            $street = $billingaddress->getStreet();
-            $data['payment']['credit_card']['billing_address']['street'] = $street[0];
-            $data['payment']['credit_card']['billing_address']['number'] = $street[1];
-            if (isset($street[3])) {
-                $data['payment']['credit_card']['billing_address']['complement'] = $street[2];
-                $data['payment']['credit_card']['billing_address']['neighborhood'] = $street[3];
-            } else {
-                $data['payment']['credit_card']['billing_address']['neighborhood'] = $street[2];
-            }
-            $cep = preg_replace('/[^0-9]/', '', $billingaddress->getPostcode());
-            $data['payment']['credit_card']['billing_address']['zipcode'] = (string)$cep;
-            $data['payment']['credit_card']['billing_address']['city'] = $billingaddress->getCity();
-            $data['payment']['credit_card']['billing_address']['state'] = $billingaddress->getRegionCode();
 
             $discountValue = str_replace("-", "", $order->getDiscountAmount());
             if ($discountValue > 0) {
