@@ -42,7 +42,7 @@ class ConfigObserver implements ObserverInterface
         $skipMtls = $this->_helperData->getSkipMtls() ? 'false' : 'true';
 
         $options = $this->_helperData->getOptions();
-        $options['certificate'] = $this->getCertificadoPath();
+        $options['certificate'] = $this->getCertificadoPath('pix');
         $options['headers'] = ['x-skip-mtls-checking' => $skipMtls];
 
         $params = ['chave' => $this->_helperData->getChavePix()];
@@ -60,7 +60,7 @@ class ConfigObserver implements ObserverInterface
     public function cadastraWebhookOpenFinance(): void
     {
         $options = $this->_helperData->getOptions();
-        $options['certificate'] = $this->getCertificadoPath();
+        $options['certificate'] = $this->getCertificadoPath('open_finance');
 
         $callbackUrl = $this->getNotificationUrlOpenFinance();
         $redirectUrl = $this->getRedirectnUrlOpenFinance();
@@ -82,9 +82,10 @@ class ConfigObserver implements ObserverInterface
         }
     }
 
-    public function getCertificadoPath(): string
+    public function getCertificadoPath(string $paymentMethod): string
     {
-        $certName = (string)$this->_helperData->getPixCert();
+
+        $certName = (string)$this->_helperData->getCert($paymentMethod);
         $certName = ltrim($certName, '/\\');
 
         if ($certName === '') {

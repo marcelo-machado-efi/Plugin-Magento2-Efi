@@ -29,14 +29,14 @@ class OpenFinanceParticipants extends Template
         $this->_directoryList = $directoryList;
     }
 
-    private function getCertificadoPixPath()
+    private function getCertificadoOpenFinancePath()
     {
         $baseDir = $this->_directoryList->getRoot();
         $paths = [
-            $baseDir . "/media/test/" . $this->_helperData->getPixCert(),
-            $baseDir . "/pub/media/test/" . $this->_helperData->getPixCert(),
-            $baseDir . "/pub/media/test/" . $this->_helperData->getPixCert(),
-            $baseDir . "/media/test/" . $this->_helperData->getPixCert(),
+            $baseDir . "/media/test/" . $this->_helperData->getCert('open_finance'),
+            $baseDir . "/pub/media/test/" . $this->_helperData->getCert('open_finance'),
+            $baseDir . "/pub/media/test/" . $this->_helperData->getCert('open_finance'),
+            $baseDir . "/media/test/" . $this->_helperData->getCert('open_finance'),
         ];
 
         foreach ($paths as $path) {
@@ -51,7 +51,7 @@ class OpenFinanceParticipants extends Template
     public function getParticipants()
     {
 
-        $certificadoPix = $this->getCertificadoPixPath();
+        $certificadoPix = $this->getCertificadoOpenFinancePath();
 
 
         $options = $this->_helperData->getOptions();

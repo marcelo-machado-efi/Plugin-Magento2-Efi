@@ -122,9 +122,9 @@ class Data extends AbstractHelper
 		return $this->getConfig('payment/gerencianet_cc/price_min');
 	}
 
-	public function getPixCert()
+	public function getCert(string $paymentMethod)
 	{
-		return $this->getConfig('payment/gerencianet_pix/certificado');
+		return $this->getConfig("payment/gerencianet_{$paymentMethod}/certificado");
 	}
 
 	public function getChavePix()

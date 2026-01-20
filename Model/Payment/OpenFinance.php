@@ -94,13 +94,13 @@ class OpenFinance extends AbstractMethod
 			$incrementId = $order->getIncrementId();
 			$storeName = $this->_storeMagerInterface->getStore()->getName();
 
-			$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "media/test/" . $this->_helperData->getPixCert();
+			$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "media/test/" . $this->_helperData->getCert('open_finance');
 			if (!file_exists($certificadoPix)) {
-				$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "pub/media/test/" . $this->_helperData->getPixCert();
+				$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "pub/media/test/" . $this->_helperData->getCert('open_finance');
 				if (!file_exists($certificadoPix)) {
-					$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "/pub/media/test/" . $this->_helperData->getPixCert();
+					$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "/pub/media/test/" . $this->_helperData->getCert('open_finance');
 					if (!file_exists($certificadoPix)) {
-						$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "/media/test/" . $this->_helperData->getPixCert();
+						$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "/media/test/" . $this->_helperData->getCert('open_finance');
 					}
 				}
 			}
