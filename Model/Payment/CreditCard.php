@@ -87,11 +87,11 @@ class CreditCard extends AbstractMethod
             $order = $payment->getOrder();
             $billingaddress = $order->getBillingAddress();
             $shippingAddress = $order->getShippingAddress();
-            $this->_helperData->logger(json_encode($order->getCustomerDob()));
             $data = [];
 
             $i = 0;
             $orderitems = $order->getAllItems();
+
             /** @var \Magento\Catalog\Model\Product */
             foreach ($orderitems as $item) {
                 if ($item->getProductType() != 'configurable') {
@@ -110,13 +110,20 @@ class CreditCard extends AbstractMethod
 
             $data['metadata']['notification_url'] = $this->_storeMagerInterface->getStore()->getBaseUrl() . 'gerencianet/notification/updatestatus';
 
-            if (isset($shippingAddress)) {
-                $data['shippings'][0]['name'] = $shippingAddress->getFirstname() . ' ' . $shippingAddress->getLastname();
-                $data['shippings'][0]['value'] = $order->getShippingAmount() * 100;
+            if ($shippingAddress && (float)$order->getShippingAmount() > 0) {
+                $shippingDescription = (string)$order->getShippingDescription();
+
+                if ($shippingDescription === '' && method_exists($shippingAddress, 'getShippingDescription')) {
+                    $shippingDescription = (string)$shippingAddress->getShippingDescription();
+                }
+
+                $data['shippings'][0]['name'] = $shippingDescription !== '' ? $shippingDescription : 'Frete';
+                $data['shippings'][0]['value'] = (int)round(((float)$order->getShippingAmount()) * 100);
             }
 
             $data['payment']['credit_card']['customer']['name'] = $order->getCustomerFirstname() . ' ' . $order->getCustomerLastname();
             $data['payment']['credit_card']['customer']['email'] = $billingaddress->getEmail();
+
             if ($paymentInfo['documentType'] == "CPF") {
                 $data['payment']['credit_card']['customer']['cpf'] = $paymentInfo['cpfCustomer'];
             } else if ($paymentInfo['documentType'] == "CNPJ") {
@@ -132,14 +139,16 @@ class CreditCard extends AbstractMethod
                 $data['payment']['credit_card']['discount']['type'] = 'currency';
                 $data['payment']['credit_card']['discount']['value'] = $discountValue * 100;
             }
-            $data['payment']['credit_card']['installments'] = (int)$paymentInfo['installments'];
 
+            $data['payment']['credit_card']['installments'] = (int)$paymentInfo['installments'];
             $data['payment']['credit_card']['payment_token'] = $paymentInfo['cardHash'];
 
             $api = new EfiPay($options);
             $pay_charge = $api->createOneStepCharge([], $data);
             $order->setCustomerTaxvat($paymentInfo['cpfCustomer']);
             $order->setGerencianetTransactionId($pay_charge['data']['charge_id']);
+        } catch (\Exception $e) {
+            throw new LocalizedException(__($e->getMessage()));
         } catch (\Exception $e) {
             throw new LocalizedException(__($e->getMessage()));
         }
