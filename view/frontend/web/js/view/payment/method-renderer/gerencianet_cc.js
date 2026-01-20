@@ -6,15 +6,15 @@ define([
 	"jquery",
 	"Magento_Ui/js/model/messageList",
 	"Magento_Checkout/js/model/quote",
-	], 
+],
 	function (
-	_,
-	Component,
-	creditCardData,
-	cardNumberValidator,
-	$,
-	messageList,
-	quote
+		_,
+		Component,
+		creditCardData,
+		cardNumberValidator,
+		$,
+		messageList,
+		quote
 	) {
 		"use strict";
 		return Component.extend({
@@ -55,7 +55,7 @@ define([
 			},
 
 			initialize: function () {
-				
+
 				var self = this;
 				this._super();
 
@@ -77,43 +77,43 @@ define([
 							var ccbrand = result.card.title.toLowerCase();
 
 							fetch(`/gerencianet/installments/index?total=${total}&brand=${ccbrand}`)
-							.then((response) => response.json())
-							.then((installments) => {
-								document.querySelector('.control_payment_token').classList.add('disabled');
-								const data = installments.data.installments;
-								let values = [];
+								.then((response) => response.json())
+								.then((installments) => {
+									document.querySelector('.control_payment_token').classList.add('disabled');
+									const data = installments.data.installments;
+									let values = [];
 
-								data.forEach((item, key) => {
-									var parcela = item.installment;
-									var valorParcela = (item.value / 100 )
-														.toLocaleString("pt-br", {
-															style: "currency",
-															currency: "BRL",
-														});
-									var total = ((item.value * item.installment) / 100)
-												.toLocaleString("pt-br", {
-													style: "currency",
-													currency: "BRL",
-												});
+									data.forEach((item, key) => {
+										var parcela = item.installment;
+										var valorParcela = (item.value / 100)
+											.toLocaleString("pt-br", {
+												style: "currency",
+												currency: "BRL",
+											});
+										var total = ((item.value * item.installment) / 100)
+											.toLocaleString("pt-br", {
+												style: "currency",
+												currency: "BRL",
+											});
 
-									values[key] = parcela + "x de R$ " + valorParcela + ". Total: R$ " + total;
-								});
-
-								var select = document.getElementById("gerencianet_cc_payment_profile_id");
-
-								if (select !== null) {
-									for (var i = 0; i < select.length; i++) {
-										select.remove(i);
-									}
-									
-									values.forEach((value, key) => {
-										var opt = document.createElement("option");
-										opt.value = key + 1;
-										opt.innerHTML = value;
-										select.appendChild(opt);
+										values[key] = parcela + "x de R$ " + valorParcela + ". Total: R$ " + total;
 									});
-								}
-							});
+
+									var select = document.getElementById("gerencianet_cc_payment_profile_id");
+
+									if (select !== null) {
+										for (var i = 0; i < select.length; i++) {
+											select.remove(i);
+										}
+
+										values.forEach((value, key) => {
+											var opt = document.createElement("option");
+											opt.value = key + 1;
+											opt.innerHTML = value;
+											select.appendChild(opt);
+										});
+									}
+								});
 						}
 						handleInstallments(result);
 					} else {
@@ -171,7 +171,7 @@ define([
 					}
 
 					var element = document.getElementById("gerencianet_company_name");
-					
+
 					if (self.creditCardOwnerCpf().length <= 14) {
 						element.style.display = "none";
 					} else {
@@ -202,12 +202,12 @@ define([
 				});
 
 				function isGenerateCardHash() {
-					return (creditCardData.cvvCode && 
-							creditCardData.expirationMonth && 
-							creditCardData.expirationYear && 
-							creditCardData.creditCardNumber) 
-					? true 
-					: false;
+					return (creditCardData.cvvCode &&
+						creditCardData.expirationMonth &&
+						creditCardData.expirationYear &&
+						creditCardData.creditCardNumber)
+						? true
+						: false;
 				}
 			},
 
@@ -227,7 +227,7 @@ define([
 
 				var fnc = function (checkout) {
 
-					checkout.getPaymentToken( 
+					checkout.getPaymentToken(
 						{
 							brand: creditCardData.creditCard.title.toLowerCase(), // bandeira do cartão
 							number: creditCardData.creditCardNumber, // número do cartão
@@ -245,32 +245,27 @@ define([
 			loadGerencianet: function (identificadorConta, url) {
 				if (!document.getElementById(identificadorConta)) {
 					if (document.querySelector(".payment-method")) {
-						const s2 = document.createElement("script");
-						s2.id = "gerencianet";
-						s2.async = false;
-
-						document.getElementsByTagName("head")[0].appendChild(s2);
-						document.getElementById("gerencianet").innerHTML = "";
-						document.getElementById("gerencianet").innerHTML = 
-							`var $gn = { 
-								validForm: true, 
-								processed: false, 
-								done: {}, 
-								ready: function (fn) { $gn.done = fn; } 
-							};`;
+						window.$gn = {
+							validForm: true,
+							processed: false,
+							done: {},
+							ready: function (fn) {
+								window.$gn.done = fn;
+							},
+						};
 
 						var v = parseInt(Math.random() * 1000000);
 						const s = document.createElement("script");
 						s.src = `${url}/v1/cdn/${identificadorConta}/` + v;
 						s.async = false;
 						s.id = identificadorConta;
-					
-						document.getElementsByTagName("head")[0].parentNode.childNodes[0].appendChild(s);
+
+						document.getElementsByTagName("head")[0].appendChild(s);
 					}
 				}
 			},
 
-			
+
 			getData: function () {
 				return {
 					method: this.item.method,
@@ -287,21 +282,21 @@ define([
 					},
 				};
 			},
-			
+
 			isActive: function () { return true; },
 			getCode: function () { return this.item.method; },
 			getCcAvailableTypes: function () { return window.checkoutConfig.payment.cc; },
 			getCcMonths: function () { return window.checkoutConfig.payment.cc.months["gerencianet_cc"]; },
 			getCcYears: function () { return window.checkoutConfig.payment.cc.years["gerencianet_cc"]; },
-			hasVerification: function () {return true; },
+			hasVerification: function () { return true; },
 			getCvvImageUrl: function () { return window.checkoutConfig.payment.cc.cvvImageUrl; },
 
 			getCvvImageHtml: function () {
 				return (
-				'<img src="' + this.getCvvImageUrl() +
+					'<img src="' + this.getCvvImageUrl() +
 					'" alt="' + _("Card Verification Number Visual Reference") +
 					'" title="' + _("Card Verification Number Visual Reference") +
-				'" />'
+					'" />'
 				);
 			},
 
@@ -339,7 +334,7 @@ define([
 					return false;
 				}
 
-				if ( creditCardData.creditCard.code.size !== creditCardData.cvvCode.length ) {
+				if (creditCardData.creditCard.code.size !== creditCardData.cvvCode.length) {
 					messageList.addErrorMessage({
 						message: "Código de verificação inválido.",
 					});
@@ -372,8 +367,8 @@ define([
 
 			getIcons: function (type) {
 				return window.checkoutConfig.payment.ccform.icons.hasOwnProperty(type)
-				? window.checkoutConfig.payment.ccform.icons[type]
-				: false;
+					? window.checkoutConfig.payment.ccform.icons[type]
+					: false;
 			},
 
 			getCcAvailableTypesValues: function () {
@@ -385,7 +380,7 @@ define([
 				const values = Object.values(
 					window.checkoutConfig.payment.cc.availableTypes.gerencianet_cc
 				);
-				
+
 				keys.forEach((element, index) => {
 					types[index] = {
 						value: element,
@@ -398,7 +393,7 @@ define([
 
 			getCcMonthsValues: function () {
 				return _.map(
-					this.getCcMonths(), 
+					this.getCcMonths(),
 					function (value, key) {
 						return {
 							value: key,
@@ -410,7 +405,7 @@ define([
 
 			getCcYearsValues: function () {
 				return _.map(
-					this.getCcYears(), 
+					this.getCcYears(),
 					function (value, key) {
 						return {
 							value: key,
@@ -427,7 +422,7 @@ define([
 				if (cnpj.length != 14) { return false };
 
 				// Elimina CNPJs invalidos conhecidos
-				if	(
+				if (
 					cnpj == "00000000000000" ||
 					cnpj == "11111111111111" ||
 					cnpj == "22222222222222" ||
@@ -438,8 +433,8 @@ define([
 					cnpj == "77777777777777" ||
 					cnpj == "88888888888888" ||
 					cnpj == "99999999999999"
-					) {
-						return false;
+				) {
+					return false;
 				}
 
 				// Valida DVs
@@ -448,7 +443,7 @@ define([
 				var digitos = cnpj.substring(tamanho);
 				var soma = 0;
 				var pos = tamanho - 7;
-				
+
 				for (i = tamanho; i >= 1; i--) {
 					soma += numeros.charAt(tamanho - i) * pos--;
 					if (pos < 2) pos = 9;
@@ -461,7 +456,7 @@ define([
 				numeros = cnpj.substring(0, tamanho);
 				soma = 0;
 				pos = tamanho - 7;
-				
+
 				for (i = tamanho; i >= 1; i--) {
 					soma += numeros.charAt(tamanho - i) * pos--;
 					if (pos < 2) { pos = 9 };
@@ -481,12 +476,12 @@ define([
 
 				cpf = cpf.replace(/[^\d]+/g, "");
 
-				if (cpf == "") { 
-					return false 
+				if (cpf == "") {
+					return false
 				};
-				
+
 				// Elimina CPFs invalidos conhecidos
-				if	(cpf.length != 11 ||
+				if (cpf.length != 11 ||
 					cpf == "00000000000" ||
 					cpf == "11111111111" ||
 					cpf == "22222222222" ||
@@ -496,40 +491,40 @@ define([
 					cpf == "66666666666" ||
 					cpf == "77777777777" ||
 					cpf == "88888888888" ||
-					cpf == "99999999999" ) {
-						return false; 
+					cpf == "99999999999") {
+					return false;
 				}
-				
+
 				// Valida 1o digito
 				add = 0;
-				for (i = 0; i < 9; i++) { 
-					add += parseInt(cpf.charAt(i)) * (10 - i) 
+				for (i = 0; i < 9; i++) {
+					add += parseInt(cpf.charAt(i)) * (10 - i)
 				};
-				
+
 				rev = 11 - (add % 11);
-				if (rev == 10 || rev == 11) { 
-					rev = 0 
+				if (rev == 10 || rev == 11) {
+					rev = 0
 				};
-				
-				if (rev != parseInt(cpf.charAt(9))) { 
-					return false 
+
+				if (rev != parseInt(cpf.charAt(9))) {
+					return false
 				};
-				
+
 				// Valida 2o digito
 				add = 0;
-				for (i = 0; i < 10; i++) { 
-					add += parseInt(cpf.charAt(i)) * (11 - i) 
+				for (i = 0; i < 10; i++) {
+					add += parseInt(cpf.charAt(i)) * (11 - i)
 				};
-				
+
 				rev = 11 - (add % 11);
-				if (rev == 10 || rev == 11) { 
-					rev = 0 
+				if (rev == 10 || rev == 11) {
+					rev = 0
 				};
-				
-				if (rev != parseInt(cpf.charAt(10))) { 
-					return false 
+
+				if (rev != parseInt(cpf.charAt(10))) {
+					return false
 				};
-				
+
 				return true;
 			},
 		});
