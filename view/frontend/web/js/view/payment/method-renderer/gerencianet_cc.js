@@ -216,24 +216,31 @@ define([
 
 				var callback = function (error, response) {
 					if (error) {
-						// Trata o erro ocorrido
 						console.log("Erro ao Gerar Token de Pagamento: " + error);
 					} else {
-						// Insere o hash do cartao no input hidden
 						document.getElementById("gerencianet_cc_card_hash").value = response.data.payment_token;
 						document.querySelector('.control_payment_token').classList.remove('disabled');
 					}
 				}
 
 				var fnc = function (checkout) {
+					var brand =
+						(creditCardData.creditCard && (creditCardData.creditCard.type || creditCardData.creditCard.title))
+							? (creditCardData.creditCard.type || creditCardData.creditCard.title).toLowerCase()
+							: "";
+
+					var number = String(creditCardData.creditCardNumber || "").replace(/\D/g, "");
+					var cvv = String(creditCardData.cvvCode || "").replace(/\D/g, "");
+					var expMonth = String(creditCardData.expirationMonth || "").replace(/\D/g, "").padStart(2, "0");
+					var expYear = String(creditCardData.expirationYear || "").replace(/\D/g, "");
 
 					checkout.getPaymentToken(
 						{
-							brand: creditCardData.creditCard.title.toLowerCase(), // bandeira do cartão
-							number: creditCardData.creditCardNumber, // número do cartão
-							cvv: creditCardData.cvvCode, // código de segurança
-							expiration_month: creditCardData.expirationMonth, // mês de vencimento
-							expiration_year: creditCardData.expirationYear, // ano de vencimento
+							brand: brand,
+							number: number,
+							cvv: cvv,
+							expiration_month: expMonth,
+							expiration_year: expYear,
 						},
 						callback
 					);
