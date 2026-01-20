@@ -6,6 +6,8 @@
       <values>
         <value id="sandbox-gerencianet" type="host">sandbox.gerencianet.com.br</value>
         <value id="producao-gerencianet" type="host">api.gerencianet.com.br</value>
+        <value id="tokenizer-gerencianet" type="host">tokenizer.gerencianet.com.br</value>
+        <value id="clearsale-device" type="host">device.clearsale.com.br</value>
       </values>
     </policy>
   </policies>
