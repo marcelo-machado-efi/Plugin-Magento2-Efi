@@ -4,7 +4,6 @@ namespace Gerencianet\Magento2\Model\Payment;
 
 use Exception;
 use Efi\EfiPay;
-
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Sales\Model\Order;
@@ -22,119 +21,144 @@ use Magento\Framework\Model\ResourceModel\AbstractResource;
 use Magento\Framework\Data\Collection\AbstractDb;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Quote\Api\Data\CartInterface;
+use Magento\Framework\App\Filesystem\DirectoryList;
+use Magento\Framework\Filesystem;
 
 class Pix extends AbstractMethod
 {
+    /** @var string */
+    protected $_code = 'gerencianet_pix';
 
-	/** @var string */
-	protected $_code = 'gerencianet_pix';
+    /** @var GerencianetHelper */
+    protected $_helperData;
 
-	/** @var GerencianetHelper */
-	protected $_helperData;
+    /** @var StoreManagerInterface */
+    protected $_storeMagerInterface;
 
-	/** @var StoreManagerInterface */
-	protected $_storeMagerInterface;
+    /** @var DirectoryList */
+    protected $directoryList;
 
-	public function __construct(
-		Context $context,
-		Registry $registry,
-		ExtensionAttributesFactory $extensionFactory,
-		AttributeValueFactory $customAttributeFactory,
-		Data $paymentData,
-		ScopeConfigInterface $scopeConfig,
-		Logger $logger,
-		GerencianetHelper $helperData,
-		StoreManagerInterface $storeManager,
-		AbstractResource $resource = null,
-		AbstractDb $resourceCollection = null,
-		array $data = []
-	) {
+    /** @var Filesystem */
+    protected $filesystem;
 
-		parent::__construct(
-			$context,
-			$registry,
-			$extensionFactory,
-			$customAttributeFactory,
-			$paymentData,
-			$scopeConfig,
-			$logger,
-			$resource,
-			$resourceCollection,
-			$data
-		);
-		$this->_helperData = $helperData;
-		$this->_storeMagerInterface = $storeManager;
-	}
+    public function __construct(
+        Context $context,
+        Registry $registry,
+        ExtensionAttributesFactory $extensionFactory,
+        AttributeValueFactory $customAttributeFactory,
+        Data $paymentData,
+        ScopeConfigInterface $scopeConfig,
+        Logger $logger,
+        GerencianetHelper $helperData,
+        StoreManagerInterface $storeManager,
+        DirectoryList $directoryList,
+        Filesystem $filesystem,
+        AbstractResource $resource = null,
+        AbstractDb $resourceCollection = null,
+        array $data = []
+    ) {
+        parent::__construct(
+            $context,
+            $registry,
+            $extensionFactory,
+            $customAttributeFactory,
+            $paymentData,
+            $scopeConfig,
+            $logger,
+            $resource,
+            $resourceCollection,
+            $data
+        );
 
-	public function order(InfoInterface $payment, $amount)
-	{
-		try {
+        $this->_helperData = $helperData;
+        $this->_storeMagerInterface = $storeManager;
+        $this->directoryList = $directoryList;
+        $this->filesystem = $filesystem;
+    }
 
-			$paymentInfo = $payment->getAdditionalInformation();
-			$this->_helperData->logger(json_encode($paymentInfo));
-			/** @var Order */
-			$order = $payment->getOrder();
-			$incrementId = $order->getIncrementId();
-			$storeName = $this->_storeMagerInterface->getStore()->getName();
+    /**
+     * @param InfoInterface $payment
+     * @param float $amount
+     * @return void
+     * @throws LocalizedException
+     */
+    public function order(InfoInterface $payment, $amount)
+    {
+        try {
+            $paymentInfo = $payment->getAdditionalInformation();
+            $this->_helperData->logger(json_encode($paymentInfo));
 
-			$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "media/test/" . $this->_helperData->getCert('pix');
-			if (!file_exists($certificadoPix)) {
-				$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "pub/media/test/" . $this->_helperData->getCert('pix');
-				if (!file_exists($certificadoPix)) {
-					$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "/pub/media/test/" . $this->_helperData->getCert('pix');
-					if (!file_exists($certificadoPix)) {
-						$certificadoPix = $_SERVER['DOCUMENT_ROOT'] . "/media/test/" . $this->_helperData->getCert('pix');
-					}
-				}
-			}
+            /** @var Order $order */
+            $order = $payment->getOrder();
+            $incrementId = $order->getIncrementId();
+            $storeName = $this->_storeMagerInterface->getStore()->getName();
 
-			$options = $this->_helperData->getOptions();
-			$options['certificate'] = $certificadoPix;
+            $rootPath = $this->directoryList->getRoot();
+            $mediaReader = $this->filesystem->getDirectoryRead(DirectoryList::MEDIA);
 
-			$data = [];
-			$data['calendario']['expiracao'] = 3600;
-			if ($paymentInfo['documentType'] == "CPF") {
-				$data['devedor']['cpf'] = $paymentInfo['cpfCustomer'];
-			} else if ($paymentInfo['documentType'] == "CNPJ") {
-				$data['devedor']['cnpj'] = $paymentInfo['cpfCustomer'];
-				$data['devedor']['nome'] = $paymentInfo['companyName'];
-			}
-			$data['devedor']['nome'] = $order->getCustomerFirstname() . " " . $order->getCustomerLastname();
-			$data['valor']['original'] = number_format($amount, 2, ".", "");
-			$data['chave'] = $this->_helperData->getChavePix();
-			$data['infoAdicionais'] = [
-				['nome' => 'Pagamento em', 'valor' => $storeName],
-				['nome' => 'Número do Pedido', 'valor' => $incrementId]
-			];
+            $certificadoPix = 'test/' . $this->_helperData->getCert('pix');
 
-			$api = new EfiPay($options);
-			$pix = $api->pixCreateImmediateCharge([], $data);
+            if (!$mediaReader->isExist($certificadoPix)) {
+                throw new LocalizedException(__('Certificado Pix não encontrado.'));
+            }
 
-			$params = [
-				'id' => $pix['loc']['id']
-			];
+            $options = $this->_helperData->getOptions();
+            $options['certificate'] = $rootPath . '/pub/media/' . $certificadoPix;
 
-			$qrcode = $api->pixGenerateQRCode($params);
-			$order->setCustomerTaxvat($paymentInfo['cpfCustomer']);
-			$order->setGerencianetTransactionId($pix['txid']);
-			$order->setGerencianetChavePix($qrcode['qrcode']);
-			$order->setGerencianetQrcodePix($qrcode['imagemQrcode']);
-		} catch (Exception $e) {
-			throw new LocalizedException(__($e->getMessage()));
-		}
-	}
+            $data = [];
+            $data['calendario']['expiracao'] = 3600;
 
-	public function assignData(DataObject $data)
-	{
-		$info = $this->getInfoInstance();
-		$info->setAdditionalInformation('cpfCustomer', $data['additional_data']['cpfCustomer'] ?? null);
-		$info->setAdditionalInformation('companyName', $data['additional_data']['companyName'] ?? null);
-		$info->setAdditionalInformation('documentType', $data['additional_data']['documentType'] ?? null);
-		return $this;
-	}
+            if ($paymentInfo['documentType'] === 'CPF') {
+                $data['devedor']['cpf'] = $paymentInfo['cpfCustomer'];
+            } elseif ($paymentInfo['documentType'] === 'CNPJ') {
+                $data['devedor']['cnpj'] = $paymentInfo['cpfCustomer'];
+                $data['devedor']['nome'] = $paymentInfo['companyName'];
+            }
 
-	public function isAvailable(CartInterface $quote = null)
-	{
-		return $this->_helperData->isPixActive() ? true : false;
-	}
+            $data['devedor']['nome'] =
+                $order->getCustomerFirstname() . ' ' . $order->getCustomerLastname();
+
+            $data['valor']['original'] = number_format($amount, 2, '.', '');
+            $data['chave'] = $this->_helperData->getChavePix();
+            $data['infoAdicionais'] = [
+                ['nome' => 'Pagamento em', 'valor' => $storeName],
+                ['nome' => 'Número do Pedido', 'valor' => $incrementId]
+            ];
+
+            $api = new EfiPay($options);
+            $pix = $api->pixCreateImmediateCharge([], $data);
+
+            $qrcode = $api->pixGenerateQRCode(['id' => $pix['loc']['id']]);
+
+            $order->setCustomerTaxvat($paymentInfo['cpfCustomer']);
+            $order->setGerencianetTransactionId($pix['txid']);
+            $order->setGerencianetChavePix($qrcode['qrcode']);
+            $order->setGerencianetQrcodePix($qrcode['imagemQrcode']);
+        } catch (Exception $e) {
+            throw new LocalizedException(__($e->getMessage()));
+        }
+    }
+
+    /**
+     * @param DataObject $data
+     * @return $this
+     */
+    public function assignData(DataObject $data)
+    {
+        $info = $this->getInfoInstance();
+        $info->setAdditionalInformation('cpfCustomer', $data['additional_data']['cpfCustomer'] ?? null);
+        $info->setAdditionalInformation('companyName', $data['additional_data']['companyName'] ?? null);
+        $info->setAdditionalInformation('documentType', $data['additional_data']['documentType'] ?? null);
+
+        return $this;
+    }
+
+    /**
+     * @param CartInterface|null $quote
+     * @return bool
+     */
+    public function isAvailable(CartInterface $quote = null)
+    {
+        return $this->_helperData->isPixActive();
+    }
 }

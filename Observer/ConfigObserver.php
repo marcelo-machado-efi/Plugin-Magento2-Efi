@@ -2,112 +2,174 @@
 
 namespace Gerencianet\Magento2\Observer;
 
-use Exception;
 use Efi\EfiPay;
 use Gerencianet\Magento2\Helper\Data;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
-use Magento\Store\Model\StoreManagerInterface;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Filesystem\DirectoryList;
+use Magento\Framework\Filesystem\DriverInterface;
+use Magento\Store\Model\StoreManagerInterface;
 
 class ConfigObserver implements ObserverInterface
 {
-    private Data $_helperData;
-    private StoreManagerInterface $_storeManagerInterface;
-    private DirectoryList $_dir;
+    /**
+     * @var Data
+     */
+    private Data $helperData;
 
+    /**
+     * @var StoreManagerInterface
+     */
+    private StoreManagerInterface $storeManager;
+
+    /**
+     * @var DirectoryList
+     */
+    private DirectoryList $dir;
+
+    /**
+     * @var DriverInterface
+     */
+    private DriverInterface $driver;
+
+    /**
+     * @param Data $helperData
+     * @param StoreManagerInterface $storeManager
+     * @param DirectoryList $dl
+     * @param DriverInterface $driver
+     */
     public function __construct(
         Data $helperData,
         StoreManagerInterface $storeManager,
-        DirectoryList $dl
+        DirectoryList $dl,
+        DriverInterface $driver
     ) {
-        $this->_helperData = $helperData;
-        $this->_storeManagerInterface = $storeManager;
-        $this->_dir = $dl;
+        $this->helperData = $helperData;
+        $this->storeManager = $storeManager;
+        $this->dir = $dl;
+        $this->driver = $driver;
     }
 
+    /**
+     * @param Observer $observer
+     * @return void
+     * @throws LocalizedException
+     */
     public function execute(Observer $observer)
     {
-        if ($this->_helperData->isPixActive()) {
+        if ($this->helperData->isPixActive()) {
             $this->cadastraWebhookPix();
         }
 
-        if ($this->_helperData->isOpenFinanceActive()) {
+        if ($this->helperData->isOpenFinanceActive()) {
             $this->cadastraWebhookOpenFinance();
         }
     }
 
+    /**
+     * @return void
+     * @throws LocalizedException
+     */
     public function cadastraWebhookPix(): void
     {
-        $skipMtls = $this->_helperData->getSkipMtls() ? 'false' : 'true';
+        $skipMtls = $this->helperData->getSkipMtls() ? 'false' : 'true';
 
-        $options = $this->_helperData->getOptions();
+        $options = $this->helperData->getOptions();
         $options['certificate'] = $this->getCertificadoPath('pix');
         $options['headers'] = ['x-skip-mtls-checking' => $skipMtls];
 
-        $params = ['chave' => $this->_helperData->getChavePix()];
+        $params = ['chave' => $this->helperData->getChavePix()];
         $body = ['webhookUrl' => $this->getNotificationUrlPix()];
 
         try {
             $api = new EfiPay($options);
             $api->pixConfigWebhook($params, $body);
-        } catch (Exception $e) {
-            $this->_helperData->logger($e->getMessage());
-            throw new Exception($e->getMessage(), 0, $e);
+        } catch (\Throwable $e) {
+            $this->helperData->logger($e->getMessage());
+
+            throw new LocalizedException(
+                __('Falha ao configurar o webhook do Pix.'),
+                $e
+            );
         }
     }
 
+    /**
+     * @return void
+     * @throws LocalizedException
+     */
     public function cadastraWebhookOpenFinance(): void
     {
-        $options = $this->_helperData->getOptions();
+        $options = $this->helperData->getOptions();
         $options['certificate'] = $this->getCertificadoPath('open_finance');
 
         $callbackUrl = $this->getNotificationUrlOpenFinance();
         $redirectUrl = $this->getRedirectnUrlOpenFinance();
-        $hash = hash('sha256', (string)($options['clientId'] ?? ''));
+        $hash = hash('sha256', (string) ($options['clientId'] ?? ''));
 
         $body = [
             'webhookURL' => $callbackUrl,
             'redirectURL' => $redirectUrl,
             'webhookSecurity' => ['type' => 'hmac', 'hash' => $hash],
-            'processPayment' => 'async'
+            'processPayment' => 'async',
         ];
 
         try {
             $api = new EfiPay($options);
             $api->ofConfigUpdate([], $body);
-        } catch (Exception $e) {
-            $this->_helperData->logger($e->getMessage());
-            throw new Exception($e->getMessage(), 0, $e);
+        } catch (\Throwable $e) {
+            $this->helperData->logger($e->getMessage());
+
+            throw new LocalizedException(
+                __('Falha ao configurar o webhook do Open Finance.'),
+                $e
+            );
         }
     }
 
+    /**
+     * @param string $paymentMethod
+     * @return string
+     */
     public function getCertificadoPath(string $paymentMethod): string
     {
-
-        $certName = (string)$this->_helperData->getCert($paymentMethod);
+        $certName = (string) $this->helperData->getCert($paymentMethod);
         $certName = ltrim($certName, '/\\');
 
         if ($certName === '') {
             return '';
         }
 
-        $path = rtrim($this->_dir->getPath('media'), '/') . '/test/' . $certName;
-        return is_file($path) ? $path : '';
+        $path = rtrim($this->dir->getPath(DirectoryList::MEDIA), '/') . '/test/' . $certName;
+
+        return $this->driver->isFile($path) ? $path : '';
     }
 
+    /**
+     * @return string
+     */
     public function getNotificationUrlPix(): string
     {
-        return $this->_storeManagerInterface->getStore()->getBaseUrl() . 'gerencianet/notification/updatepixstatus';
+        return $this->storeManager->getStore()->getBaseUrl()
+            . 'gerencianet/notification/updatepixstatus';
     }
 
+    /**
+     * @return string
+     */
     public function getNotificationUrlOpenFinance(): string
     {
-        return $this->_storeManagerInterface->getStore()->getBaseUrl() . 'gerencianet/notification/updateopenfinancestatus';
+        return $this->storeManager->getStore()->getBaseUrl()
+            . 'gerencianet/notification/updateopenfinancestatus';
     }
 
+    /**
+     * @return string
+     */
     public function getRedirectnUrlOpenFinance(): string
     {
-        return $this->_storeManagerInterface->getStore()->getBaseUrl() . 'gerencianet/redirect/redirectopenfinance';
+        return $this->storeManager->getStore()->getBaseUrl()
+            . 'gerencianet/redirect/redirectopenfinance';
     }
 }

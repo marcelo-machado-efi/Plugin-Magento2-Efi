@@ -4,64 +4,70 @@ declare(strict_types=1);
 
 namespace Gerencianet\Magento2\Controller\Installments;
 
+use Efi\EfiPay;
+use Efi\Exception\EfiException;
 use Gerencianet\Magento2\Helper\Data;
 use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\Action\Context;
-use Magento\Framework\App\RequestInterface;
-use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\App\Action\HttpGetActionInterface;
-use Efi\Exception\EfiException;
-
-use Efi\EfiPay;
+use Magento\Framework\Controller\Result\JsonFactory;
 
 class Index extends Action implements HttpGetActionInterface
 {
+    /** @var Data */
+    private Data $_helperData;
 
-  /** @var Data */
-  private $_helperData;
+    /** @var JsonFactory */
+    private JsonFactory $_jsonResultFactory;
 
-  /** @var JsonFactory */
-  private $_jsonResultFactory;
+    /**
+     * @param Context $context
+     * @param Data $helperData
+     * @param JsonFactory $jsonResultFactory
+     */
+    public function __construct(
+        Context $context,
+        Data $helperData,
+        JsonFactory $jsonResultFactory
+    ) {
+        $this->_helperData = $helperData;
+        $this->_jsonResultFactory = $jsonResultFactory;
 
-  /**
-   * @param RequestInterface $request
-   * @param Data $helperData
-   * @param JsonFactory $jsonResultFactory
-   */
-  public function __construct(
-    Context $context,
-    Data $helperData,
-    JsonFactory $jsonResultFactory
-  ) {
-    $this->_helperData = $helperData;
-    $this->_jsonResultFactory = $jsonResultFactory;
-
-    parent::__construct($context);
-  }
-
-  /** @inheritdoc */
-  public function execute()
-  {
-
-    $brand = $this->getRequest()->getParam('brand');
-    $total = $this->getRequest()->getParam('total');
-    $options = $this->_helperData->getOptions();
-
-    $params = ['total' => $total, 'brand' => $brand];
-
-    try {
-      $api = new EfiPay($options);
-      $response = $api->getInstallments($params, []);
-
-      $r = $this->_jsonResultFactory->create();
-      $r->setData($response);
-
-      return $r;
-    } catch (EfiException $e) {
-      print_r($e->code . " - " . $e->error . "<br>");
-      print_r($e->errorDescription);
-    } catch (Exception $e) {
-      print_r($e->getMessage());
+        parent::__construct($context);
     }
-  }
+
+    /**
+     * @inheritdoc
+     */
+    public function execute()
+    {
+        $brand = $this->getRequest()->getParam('brand');
+        $total = $this->getRequest()->getParam('total');
+        $options = $this->_helperData->getOptions();
+
+        $params = [
+            'total' => $total,
+            'brand' => $brand,
+        ];
+
+        $result = $this->_jsonResultFactory->create();
+
+        try {
+            $api = new EfiPay($options);
+            $response = $api->getInstallments($params, []);
+
+            return $result->setData($response);
+        } catch (EfiException $e) {
+            return $result->setData([
+                'error' => true,
+                'code' => $e->code,
+                'message' => $e->errorDescription ?? $e->error,
+            ]);
+        } catch (\Exception $e) {
+            return $result->setData([
+                'error' => true,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
 }

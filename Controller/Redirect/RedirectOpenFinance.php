@@ -3,23 +3,20 @@ declare(strict_types=1);
 
 namespace Gerencianet\Magento2\Controller\Redirect;
 
-
+use Gerencianet\Magento2\Helper\Data;
 use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\Action\Context;
-use Magento\Framework\View\Result\PageFactory;
 use Magento\Framework\App\CsrfAwareActionInterface;
 use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Framework\App\RequestInterface;
-use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Framework\Api\SearchCriteriaBuilder;
-use Magento\Sales\Model\Order;
-use Gerencianet\Magento2\Helper\Data;
+use Magento\Framework\View\Result\PageFactory;
+use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Framework\View\Element\Template;
 
 class RedirectOpenFinance extends Action implements CsrfAwareActionInterface
 {
-    /**
-     * @var PageFactory
-     */
+    /** @var PageFactory */
     protected $resultPageFactory;
 
     /** @var SearchCriteriaBuilder */
@@ -32,9 +29,10 @@ class RedirectOpenFinance extends Action implements CsrfAwareActionInterface
     protected $_helperData;
 
     /**
-     * Constructor
-     *
      * @param Context $context
+     * @param SearchCriteriaBuilder $searchCriteriaBuilder
+     * @param OrderRepositoryInterface $orderRepository
+     * @param Data $helperData
      * @param PageFactory $resultPageFactory
      */
     public function __construct(
@@ -52,47 +50,35 @@ class RedirectOpenFinance extends Action implements CsrfAwareActionInterface
     }
 
     /**
-     * Execute method
-     *
-     * @return \Magento\Framework\View\Result\Page
+     * @return \Magento\Framework\App\ResponseInterface
      */
     public function execute()
     {
-        // Get identificadorPagamento from query params
         $identificadorPagamento = $this->getRequest()->getParam('identificadorPagamento');
 
-        
-        // Load page
         $resultPage = $this->resultPageFactory->create(true);
         $resultPage->getConfig()->getTitle()->prepend(__('Redirect to Open Finance Page'));
-         // Criar um bloco para o cabeçalho
-         $headerBlock = $resultPage->getLayout()->getBlock('header');
-        
-         // Criar um bloco para o rodapé
-         $footerBlock = $resultPage->getLayout()->getBlock('footer');
-        $block = $resultPage->getLayout()->createBlock('Magento\Framework\View\Element\Template');
-        $block->setTemplate('Gerencianet_Magento2::redirect/redirectopenfinance.phtml');
 
+        $block = $resultPage->getLayout()->createBlock(Template::class);
+        $block->setTemplate('Gerencianet_Magento2::redirect/redirectopenfinance.phtml');
         $block->setData('identificadorPagamento', $identificadorPagamento);
-     
-        
-        $htmlContent = $block->toHtml();
-    
-    // Return the HTML content
-        return $this->getResponse()->setBody($htmlContent);
-       
+
+        return $this->getResponse()->setBody($block->toHtml());
     }
 
-   
-
-
-    /** * @inheritDoc */
+    /**
+     * @param RequestInterface $request
+     * @return InvalidRequestException|null
+     */
     public function createCsrfValidationException(RequestInterface $request): ?InvalidRequestException
     {
         return null;
     }
 
-    /** * @inheritDoc */
+    /**
+     * @param RequestInterface $request
+     * @return bool|null
+     */
     public function validateForCsrf(RequestInterface $request): ?bool
     {
         return true;

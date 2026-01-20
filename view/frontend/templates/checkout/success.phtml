@@ -3,84 +3,104 @@
 use Gerencianet\Magento2\Block\Checkout\Success;
 
 /** @var Success $block */
+/** @var \Magento\Framework\Escaper $escaper */
+
 $order = $block->getOrder();
-$url =  $order->getGerencianetRedirectUrl();
+
+$url = $order->getGerencianetRedirectUrl();
 $qrcodepix = $order->getGerencianetQrcodePix();
 $boleto = $order->getGerencianetUrlBoleto();
-$linha_digitavel = $order->getGerencianetCodigoDeBarras();
+$linhaDigitavel = $order->getGerencianetCodigoDeBarras();
 $chavepix = $order->getGerencianetChavePix();
+
 $payment = $order->getPayment();
 ?>
+
 <?php if ($payment->getMethod() === 'gerencianet_pix') : ?>
-  <div class="actions-toolbar flex">
-    <div class="primary">
-      <img src="<?= $block->escapeUrl($qrcodepix) ?>" />
-    </div>
-    <div class="linhes">
-      <h3>Copia e cola:</h3>
-      <textarea readonly rows="5" name="pixer" id="select-this"><?= $block->escapeHtml($chavepix) ?></textarea>
-      <div class="actions-toolbar">
+    <div class="actions-toolbar flex">
         <div class="primary">
-          <button id='clickMe'>Copiar</button>
+            <img src="<?= $escaper->escapeUrl($qrcodepix) ?>" alt="">
         </div>
-      </div>
+
+        <div class="linhes">
+            <h3>Copia e cola:</h3>
+
+            <textarea readonly rows="5" name="pixer" id="select-this"><?= $escaper->escapeHtml($chavepix) ?></textarea>
+
+            <div class="actions-toolbar">
+                <div class="primary">
+                    <button id="clickMe" type="button">Copiar</button>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-  <script>
-    let validatePayment = 0;
-    let intervalId = setInterval(function() {
-      fetch("/gerencianet/ajax/ofpaymentstatusajaxhandler?identificadorPagamento=<?= $block->escapeUrl($order->getGerencianetTransactionId()) ?>", {
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-        .then(function(response) {
 
-          if (response.ok) {
+    <script>
+        let validatePayment = 0;
 
-            return response.json();
-          }
-          throw new Error('Erro na resposta da requisição.');
-        })
-        .then(function(pixStatus) {
-          if (pixStatus.paid) {
-            window.location.href = `/sales/order/view/order_id/${pixStatus.order_id}/`;
-          }
-          if (validatePayment == 60) {
-            clearInterval(intervalId);
-          }
-          validatePayment++;
-        })
-        .catch(function(error) {
-          console.error(error);
-        });
-    }, 1000);
-  </script>
-<?php endif ?>
+        let intervalId = setInterval(function () {
+            fetch(
+                "/gerencianet/ajax/ofpaymentstatusajaxhandler?identificadorPagamento=<?= $escaper->escapeJs($escaper->escapeUrl($order->getGerencianetTransactionId())) ?>",
+                {
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                }
+            )
+                .then(function (response) {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error("Erro na resposta da requisição.");
+                })
+                .then(function (pixStatus) {
+                    if (pixStatus.paid) {
+                        window.location.href = `/sales/order/view/order_id/${pixStatus.order_id}/`;
+                    }
+
+                    if (validatePayment == 60) {
+                        clearInterval(intervalId);
+                    }
+
+                    validatePayment++;
+                })
+                .catch(function (error) {
+                    console.error(error);
+                });
+        }, 1000);
+    </script>
+<?php endif; ?>
+
 <?php if ($payment->getMethod() === 'gerencianet_boleto') : ?>
-  <div class="actions-toolbar flex">
-    <div class="linhes">
-      <h3>Linha digitável:</h3>
-      <div class="flex">
-        <textarea readonly rows="1" name="pixer" id="select-this"><?= $block->escapeHtml($linha_digitavel) ?></textarea>
-        <div class="actions-toolbar linha-digitavel">
-          <div class="primary">
-            <button id='clickMe'>Copiar</button>
-          </div>
+    <div class="actions-toolbar flex">
+        <div class="linhes">
+            <h3>Linha digitável:</h3>
+
+            <div class="flex">
+                <textarea readonly rows="1" name="pixer" id="select-this"><?= $escaper->escapeHtml($linhaDigitavel) ?></textarea>
+
+                <div class="actions-toolbar linha-digitavel">
+                    <div class="primary">
+                        <button id="clickMe" type="button">Copiar</button>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
-  <div class="view-boleto">
-    <iframe src="<?= $block->escapeUrl($boleto) ?>" width="100%" height="500px">
-    </iframe>
-  </div>
-  <div class="primary">
-    <a target="_blank" class="action primary continue" href="<?= $block->escapeUrl($boleto) ?>"><span>Vizualizar Boleto</span></a>
-  </div>
-<?php endif ?>
+
+    <div class="view-boleto">
+        <iframe src="<?= $escaper->escapeUrl($boleto) ?>" width="100%" height="500px"></iframe>
+    </div>
+
+    <div class="primary">
+        <a target="_blank" class="action primary continue" href="<?= $escaper->escapeUrl($boleto) ?>">
+            <span>Vizualizar Boleto</span>
+        </a>
+    </div>
+<?php endif; ?>
+
 <?php if ($payment->getMethod() === 'gerencianet_open_finance') : ?>
-  <script>
-    window.location.href = "<?= $block->escapeUrl($url) ?>";
-  </script>
+    <script>
+        window.location.href = "<?= $escaper->escapeJs($escaper->escapeUrl($url)) ?>";
+    </script>
 <?php endif; ?>

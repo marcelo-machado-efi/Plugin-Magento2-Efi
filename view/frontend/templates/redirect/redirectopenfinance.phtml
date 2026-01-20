@@ -1,11 +1,11 @@
 <?php
-$request = $block->getRequest();
+/** @var \Magento\Framework\Escaper $escaper */
 
+$request = $block->getRequest();
 $errorValue = $request->getParam('erro');
 ?>
 
 <html>
-
 <head>
     <title>Finalização</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -148,7 +148,6 @@ $errorValue = $request->getParam('erro');
             }
         }
     </style>
-
 </head>
 
 <body>
@@ -156,80 +155,87 @@ $errorValue = $request->getParam('erro');
         <div class="card failure">
             <img src="https://sejaefi.com.br/_ipx/_/images/components/footer/brand-efi-by-gn-v.svg" alt="">
             <h1>Falha ao processar pagamento!</h1>
-            <p><?= $block->escapeHtml($errorValue) ?></p>
+            <p><?= $escaper->escapeHtml($errorValue) ?></p>
             <a href="/sales/order/history/" class="button">Voltar para pedidos</a>
         </div>
     <?php endif; ?>
+
     <?php if ($errorValue == null) : ?>
         <div class="payment-success">
             <img src="https://sejaefi.com.br/_ipx/_/images/components/footer/brand-efi-by-gn-v.svg" alt="">
             <h1>Pagamento Em Processamento!</h1>
-            <p>Olá! O seu pagamento está sendo processado. Por favor, aguarde alguns segundos enquanto realizamos o processamento.</p>
+            <p>
+                Olá! O seu pagamento está sendo processado. Por favor, aguarde alguns segundos enquanto realizamos o
+                processamento.
+            </p>
             <div class="spinner"></div>
         </div>
     <?php endif; ?>
-    <!-- JavaScript -->
 
     <script>
         let validatePayment = 0;
 
         let container = document.getElementsByClassName("payment-success")[0];
 
-        let intervalId = setInterval(function() {
-            fetch("/gerencianet/ajax/ofpaymentstatusajaxhandler?identificadorPagamento=<?= $block->escapeJs($block->escapeUrl($block->getData('identificadorPagamento'))) ?>", {
+        let intervalId = setInterval(function () {
+            fetch(
+                "/gerencianet/ajax/ofpaymentstatusajaxhandler?identificadorPagamento=<?= $escaper->escapeJs($escaper->escapeUrl($block->getData('identificadorPagamento'))) ?>",
+                {
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
+                        "X-Requested-With": "XMLHttpRequest"
                     }
-                })
-                .then(function(response) {
-
+                }
+            )
+                .then(function (response) {
                     if (response.ok) {
-
                         return response.json();
                     }
-                    throw new Error('Erro na resposta da requisição.');
+                    throw new Error("Erro na resposta da requisição.");
                 })
-                .then(function(ofStatus) {
+                .then(function (ofStatus) {
                     if (ofStatus.paid) {
                         container.classList.add("fade-out");
                         document.getElementsByClassName("spinner")[0].style.display = "none";
 
-                        setTimeout(function() {
-                            container.getElementsByTagName("h1")[0].innerText = "Pagamento processado com sucesso!";
-                            container.getElementsByTagName("p")[0].innerText = "Você será redirecionado para o seu pedido em alguns instantes.";
+                        setTimeout(function () {
+                            container.getElementsByTagName("h1")[0].innerText =
+                                "Pagamento processado com sucesso!";
+                            container.getElementsByTagName("p")[0].innerText =
+                                "Você será redirecionado para o seu pedido em alguns instantes.";
 
                             container.classList.add("fade-in");
                         }, 500);
 
-                        setTimeout(function() {
+                        setTimeout(function () {
                             window.location.href = `/sales/order/view/order_id/${ofStatus.order_id}/`;
                         }, 5000);
-
                     }
-                    if (validatePayment == 60) {
 
-                        let link = document.createElement('a');
+                    if (validatePayment == 60) {
+                        let link = document.createElement("a");
                         link.href = `/sales/order/view/order_id/${ofStatus.order_id}/`;
-                        link.className = 'button';
-                        link.innerText = 'Voltar para a fatura';
+                        link.className = "button";
+                        link.innerText = "Voltar para a fatura";
+
                         clearInterval(intervalId);
                         container.classList.add("fade-out");
                         document.getElementsByClassName("spinner")[0].style.display = "none";
 
-                        setTimeout(function() {
+                        setTimeout(function () {
                             container.getElementsByTagName("h1")[0].innerText = "Pagamento Não Processado";
-                            container.getElementsByTagName("p")[0].innerText = "O tempo para processamento do pagamento expirou. Por favor, verifique sua fatura e o banco utilizado para pagamento";
+                            container.getElementsByTagName("p")[0].innerText =
+                                "O tempo para processamento do pagamento expirou. Por favor, verifique sua fatura e o banco utilizado para pagamento";
                             container.appendChild(link);
                             container.classList.add("fade-in");
                         }, 500);
                     }
+
                     validatePayment++;
                 })
-                .catch(function(error) {
+                .catch(function (error) {
                     console.error(error);
                 });
         }, 1000);
     </script>
 </body>
-
 </html>

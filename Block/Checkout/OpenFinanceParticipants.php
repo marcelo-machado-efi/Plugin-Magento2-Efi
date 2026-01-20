@@ -2,45 +2,71 @@
 
 namespace Gerencianet\Magento2\Block\Checkout;
 
+use Efi\EfiPay;
+use Efi\Exception\EfiException;
+use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
+use Magento\Framework\App\Filesystem\DirectoryList;
+use Magento\Framework\Filesystem\DriverInterface;
 use Magento\Framework\View\Element\Template;
 use Magento\Framework\View\Element\Template\Context;
-use Magento\Framework\App\Filesystem\DirectoryList;
-use Efi\Exception\EfiException;
-use Efi\EfiPay;
-
-use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
 
 class OpenFinanceParticipants extends Template
 {
-    /** @var GerencianetHelper */
-    protected $_helperData;
+    /**
+     * @var GerencianetHelper
+     */
+    private GerencianetHelper $helperData;
 
-    /** @var DirectoryList */
-    protected $_directoryList;
+    /**
+     * @var DirectoryList
+     */
+    private DirectoryList $directoryList;
 
+    /**
+     * @var DriverInterface
+     */
+    private DriverInterface $driver;
+
+    /**
+     * @param Context $context
+     * @param GerencianetHelper $helperData
+     * @param DirectoryList $directoryList
+     * @param DriverInterface $driver
+     * @param array $data
+     */
     public function __construct(
         Context $context,
         GerencianetHelper $helperData,
         DirectoryList $directoryList,
+        DriverInterface $driver,
         array $data = []
     ) {
         parent::__construct($context, $data);
-        $this->_helperData = $helperData;
-        $this->_directoryList = $directoryList;
+        $this->helperData = $helperData;
+        $this->directoryList = $directoryList;
+        $this->driver = $driver;
     }
 
-    private function getCertificadoOpenFinancePath()
+    /**
+     * @return string|null
+     */
+    private function getCertificadoOpenFinancePath(): ?string
     {
-        $baseDir = $this->_directoryList->getRoot();
+        $baseDir = $this->directoryList->getRoot();
+        $certName = (string) $this->helperData->getCert('open_finance');
+        $certName = ltrim($certName, '/\\');
+
+        if ($certName === '') {
+            return null;
+        }
+
         $paths = [
-            $baseDir . "/media/test/" . $this->_helperData->getCert('open_finance'),
-            $baseDir . "/pub/media/test/" . $this->_helperData->getCert('open_finance'),
-            $baseDir . "/pub/media/test/" . $this->_helperData->getCert('open_finance'),
-            $baseDir . "/media/test/" . $this->_helperData->getCert('open_finance'),
+            $baseDir . '/media/test/' . $certName,
+            $baseDir . '/pub/media/test/' . $certName
         ];
 
         foreach ($paths as $path) {
-            if (file_exists($path)) {
+            if ($this->driver->isExists($path) && $this->driver->isFile($path)) {
                 return $path;
             }
         }
@@ -48,22 +74,21 @@ class OpenFinanceParticipants extends Template
         return null;
     }
 
+    /**
+     * @return array|string
+     */
     public function getParticipants()
     {
+        $certificadoOpenFinance = $this->getCertificadoOpenFinancePath();
 
-        $certificadoPix = $this->getCertificadoOpenFinancePath();
-
-
-        $options = $this->_helperData->getOptions();
-        $options['certificate'] = $certificadoPix;
+        $options = $this->helperData->getOptions();
+        $options['certificate'] = $certificadoOpenFinance;
 
         try {
             $api = new EfiPay($options);
-            $response = $api->ofListParticipants($params = []);
-            return $response;
+            return $api->ofListParticipants([]);
         } catch (EfiException $e) {
-
-            return $e->errorDescription;
+            return (string) $e->errorDescription;
         }
     }
 }

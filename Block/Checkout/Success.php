@@ -2,29 +2,38 @@
 
 namespace Gerencianet\Magento2\Block\Checkout;
 
-use Magento\Framework\View\Element\Template;
 use Magento\Checkout\Model\Session;
+use Magento\Framework\View\Element\Template;
 use Magento\Framework\View\Element\Template\Context;
 
-class Success extends Template {
+class Success extends Template
+{
+    /**
+     * @var Session
+     */
+    private Session $checkoutSession;
 
-  /** @var Session */
-  protected $_checkoutSession;
-
-  public function __construct(
-    Session $checkoutSession,
-    Context $context,
-    array $data = null
-  ) {
-    if ($data == null) {
-      $data = [];
+    /**
+     * @param Context $context
+     * @param Session $checkoutSession
+     * @param array $data
+     */
+    public function __construct(
+        Context $context,
+        Session $checkoutSession,
+        array $data = []
+    ) {
+        parent::__construct($context, $data);
+        $this->checkoutSession = $checkoutSession;
     }
-    parent::__construct($context, $data);
-    $this->_checkoutSession = $checkoutSession;
-  }
 
-  /** Return Last Order */
-  public function getOrder() {
-    return $this->_checkoutSession->getLastRealOrder();
-  }
+    /**
+     * Return last real order.
+     *
+     * @return \Magento\Sales\Model\Order
+     */
+    public function getOrder()
+    {
+        return $this->checkoutSession->getLastRealOrder();
+    }
 }
