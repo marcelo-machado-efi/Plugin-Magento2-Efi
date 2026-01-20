@@ -74,7 +74,7 @@ define([
 					if (result.isPotentiallyValid && result.isValid) {
 						function handleInstallments(result) {
 							var total = quote.totals().grand_total * 100;
-							var ccbrand = result.card.title.toLowerCase();
+							var ccbrand = String(result.card.type || result.card.title || "").toLowerCase();
 
 							fetch(`/gerencianet/installments/index?total=${total}&brand=${ccbrand}`)
 								.then((response) => response.json())
@@ -224,10 +224,37 @@ define([
 				}
 
 				var fnc = function (checkout) {
-					var brand =
-						(creditCardData.creditCard && (creditCardData.creditCard.type || creditCardData.creditCard.title))
-							? (creditCardData.creditCard.type || creditCardData.creditCard.title).toLowerCase()
-							: "";
+					var mapBrand = function (codeOrName) {
+						var raw = String(codeOrName || "").trim();
+						var upper = raw.toUpperCase();
+
+						var map = {
+							"VI": "visa",
+							"VISA": "visa",
+
+							"MC": "mastercard",
+							"MASTERCARD": "mastercard",
+							"MASTER": "mastercard",
+
+							"AE": "amex",
+							"AMEX": "amex",
+							"AMERICANEXPRESS": "amex",
+
+							"ELO": "elo",
+
+							"HC": "hipercard",
+							"HIPERCARD": "hipercard",
+						};
+
+
+						return map[upper] || raw;
+					};
+
+					var brandSource = creditCardData.creditCard
+						? (creditCardData.creditCard.type || creditCardData.creditCard.title || "")
+						: "";
+
+					var brand = mapBrand(brandSource);
 
 					var number = String(creditCardData.creditCardNumber || "").replace(/\D/g, "");
 					var cvv = String(creditCardData.cvvCode || "").replace(/\D/g, "");
@@ -271,7 +298,6 @@ define([
 					}
 				}
 			},
-
 
 			getData: function () {
 				return {
@@ -428,7 +454,6 @@ define([
 				if (cnpj == "") { return false };
 				if (cnpj.length != 14) { return false };
 
-				// Elimina CNPJs invalidos conhecidos
 				if (
 					cnpj == "00000000000000" ||
 					cnpj == "11111111111111" ||
@@ -444,7 +469,6 @@ define([
 					return false;
 				}
 
-				// Valida DVs
 				var tamanho = cnpj.length - 2;
 				var numeros = cnpj.substring(0, tamanho);
 				var digitos = cnpj.substring(tamanho);
@@ -487,7 +511,6 @@ define([
 					return false
 				};
 
-				// Elimina CPFs invalidos conhecidos
 				if (cpf.length != 11 ||
 					cpf == "00000000000" ||
 					cpf == "11111111111" ||
@@ -502,7 +525,6 @@ define([
 					return false;
 				}
 
-				// Valida 1o digito
 				add = 0;
 				for (i = 0; i < 9; i++) {
 					add += parseInt(cpf.charAt(i)) * (10 - i)
@@ -517,7 +539,6 @@ define([
 					return false
 				};
 
-				// Valida 2o digito
 				add = 0;
 				for (i = 0; i < 10; i++) {
 					add += parseInt(cpf.charAt(i)) * (11 - i)
