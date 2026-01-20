@@ -65,7 +65,7 @@ class UpdatePixStatus extends Action implements CsrfAwareActionInterface
                 $txId = $pixBody['txid'];
                 $params = ["txid" => $txId];
 
-                $certificadopath = $this->_directoryList->getPath('media') . "/test/" . $this->_helperData->getCert();
+                $certificadopath = $this->_directoryList->getPath('media') . "/test/" . $this->_helperData->getCert('pix');
                 $certificadoPix = file_exists($certificadopath) ? $certificadopath : false;
 
                 $options = $this->_helperData->getOptions();
