@@ -123,7 +123,6 @@ class CreditCard extends AbstractMethod
                 $data['payment']['credit_card']['customer']['juridical_person']['corporate_name'] = $paymentInfo['companyName'];
                 $data['payment']['credit_card']['customer']['juridical_person']['cnpj'] = $paymentInfo['cpfCustomer'];
             }
-            $data['payment']['credit_card']['customer']['birth'] = date("Y-m-d", strtotime($order->getCustomerDob()));
 
             $billingAddPhone = $this->formatPhone($billingaddress->getTelephone());
             $data['payment']['credit_card']['customer']['phone_number'] = $paymentInfo['phone'] ?? $billingAddPhone;
