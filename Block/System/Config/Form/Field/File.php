@@ -22,6 +22,11 @@ class File extends MageFile
     private FileDriver $driver;
 
     /**
+     * @var Escaper
+     */
+    private Escaper $escaper;
+
+    /**
      * @param Factory $factoryElement
      * @param CollectionFactory $factoryCollection
      * @param Escaper $escaper
@@ -39,6 +44,8 @@ class File extends MageFile
     ) {
         $this->directoryList = $directoryList;
         $this->driver = $driver;
+        $this->escaper = $escaper;
+
         parent::__construct($factoryElement, $factoryCollection, $escaper, $data);
     }
 
@@ -57,7 +64,9 @@ class File extends MageFile
             && $this->driver->isExists($filepath)
             && $this->driver->isFile($filepath)
         ) {
-            return '<div><span style="color:#006400">Há um certificado salvo: ' . $this->escapeHtml($nomeArquivo) . '</span></div>';
+            return '<div><span style="color:#006400">Há um certificado salvo: '
+                . $this->escaper->escapeHtml($nomeArquivo)
+                . '</span></div>';
         }
 
         return '<div><span style="color:#8b0000">Você não possui um certificado!</span></div>';
