@@ -6,7 +6,7 @@ use Efi\EfiPay;
 use Efi\Exception\EfiException;
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
 use Magento\Framework\App\Filesystem\DirectoryList;
-use Magento\Framework\Filesystem\DriverInterface;
+use Magento\Framework\Filesystem\Driver\File as FileDriver;
 use Magento\Framework\View\Element\Template;
 use Magento\Framework\View\Element\Template\Context;
 
@@ -23,22 +23,22 @@ class OpenFinanceParticipants extends Template
     private DirectoryList $directoryList;
 
     /**
-     * @var DriverInterface
+     * @var FileDriver
      */
-    private DriverInterface $driver;
+    private FileDriver $driver;
 
     /**
      * @param Context $context
      * @param GerencianetHelper $helperData
      * @param DirectoryList $directoryList
-     * @param DriverInterface $driver
+     * @param FileDriver $driver
      * @param array $data
      */
     public function __construct(
         Context $context,
         GerencianetHelper $helperData,
         DirectoryList $directoryList,
-        DriverInterface $driver,
+        FileDriver $driver,
         array $data = []
     ) {
         parent::__construct($context, $data);

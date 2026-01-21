@@ -8,7 +8,7 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Filesystem\DirectoryList;
-use Magento\Framework\Filesystem\DriverInterface;
+use Magento\Framework\Filesystem\Driver\File;
 use Magento\Store\Model\StoreManagerInterface;
 
 class ConfigObserver implements ObserverInterface
@@ -29,21 +29,21 @@ class ConfigObserver implements ObserverInterface
     private DirectoryList $dir;
 
     /**
-     * @var DriverInterface
+     * @var File
      */
-    private DriverInterface $driver;
+    private File $driver;
 
     /**
      * @param Data $helperData
      * @param StoreManagerInterface $storeManager
      * @param DirectoryList $dl
-     * @param DriverInterface $driver
+     * @param File $driver
      */
     public function __construct(
         Data $helperData,
         StoreManagerInterface $storeManager,
         DirectoryList $dl,
-        DriverInterface $driver
+        File $driver
     ) {
         $this->helperData = $helperData;
         $this->storeManager = $storeManager;

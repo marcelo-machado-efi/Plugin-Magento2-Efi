@@ -7,7 +7,7 @@ use Magento\Framework\Data\Form\Element\CollectionFactory;
 use Magento\Framework\Data\Form\Element\Factory;
 use Magento\Framework\Escaper;
 use Magento\Framework\Filesystem\DirectoryList;
-use Magento\Framework\Filesystem\DriverInterface;
+use Magento\Framework\Filesystem\Driver\File as FileDriver;
 
 class File extends MageFile
 {
@@ -17,16 +17,16 @@ class File extends MageFile
     private DirectoryList $directoryList;
 
     /**
-     * @var DriverInterface
+     * @var FileDriver
      */
-    private DriverInterface $driver;
+    private FileDriver $driver;
 
     /**
      * @param Factory $factoryElement
      * @param CollectionFactory $factoryCollection
      * @param Escaper $escaper
      * @param DirectoryList $directoryList
-     * @param DriverInterface $driver
+     * @param FileDriver $driver
      * @param array $data
      */
     public function __construct(
@@ -34,7 +34,7 @@ class File extends MageFile
         CollectionFactory $factoryCollection,
         Escaper $escaper,
         DirectoryList $directoryList,
-        DriverInterface $driver,
+        FileDriver $driver,
         array $data = []
     ) {
         $this->directoryList = $directoryList;
