@@ -2,45 +2,71 @@
 
 namespace Gerencianet\Magento2\Model\Payment;
 
-use Exception;
 use Efi\EfiPay;
+use Exception;
 use Gerencianet\Magento2\Helper\Data as GerencianetHelper;
-use Magento\Store\Model\StoreManagerInterface;
-use Magento\Sales\Model\Order;
-use Magento\Payment\Model\Method\AbstractMethod;
-use Magento\Payment\Helper\Data;
-use Magento\Payment\Model\Method\Logger;
-use Magento\Payment\Model\InfoInterface;
-use Magento\Framework\Model\Context;
-use Magento\Framework\Registry;
-use Magento\Framework\Api\ExtensionAttributesFactory;
 use Magento\Framework\Api\AttributeValueFactory;
-use Magento\Framework\DataObject;
+use Magento\Framework\Api\ExtensionAttributesFactory;
 use Magento\Framework\App\Config\ScopeConfigInterface;
-use Magento\Framework\Model\ResourceModel\AbstractResource;
-use Magento\Framework\Data\Collection\AbstractDb;
-use Magento\Framework\Exception\LocalizedException;
-use Magento\Quote\Api\Data\CartInterface;
 use Magento\Framework\App\Filesystem\DirectoryList;
+use Magento\Framework\Data\Collection\AbstractDb;
+use Magento\Framework\DataObject;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Filesystem;
+use Magento\Framework\Model\Context;
+use Magento\Framework\Model\ResourceModel\AbstractResource;
+use Magento\Framework\Registry;
+use Magento\Payment\Helper\Data;
+use Magento\Payment\Model\InfoInterface;
+use Magento\Payment\Model\Method\AbstractMethod;
+use Magento\Payment\Model\Method\Logger;
+use Magento\Quote\Api\Data\CartInterface;
+use Magento\Sales\Model\Order;
+use Magento\Store\Model\StoreManagerInterface;
 
 class Pix extends AbstractMethod
 {
-    /** @var string */
+    /**
+     * @var string
+     */
     protected $_code = 'gerencianet_pix';
 
-    /** @var GerencianetHelper */
-    protected $_helperData;
+    /**
+     * @var GerencianetHelper
+     */
+    protected GerencianetHelper $_helperData;
 
-    /** @var StoreManagerInterface */
-    protected $_storeMagerInterface;
+    /**
+     * @var StoreManagerInterface
+     */
+    protected StoreManagerInterface $_storeMagerInterface;
 
-    /** @var DirectoryList */
-    protected $directoryList;
+    /**
+     * @var DirectoryList
+     */
+    protected DirectoryList $directoryList;
 
-    /** @var Filesystem */
-    protected $filesystem;
+    /**
+     * @var Filesystem
+     */
+    protected Filesystem $filesystem;
 
+    /**
+     * @param Context $context
+     * @param Registry $registry
+     * @param ExtensionAttributesFactory $extensionFactory
+     * @param AttributeValueFactory $customAttributeFactory
+     * @param Data $paymentData
+     * @param ScopeConfigInterface $scopeConfig
+     * @param Logger $logger
+     * @param GerencianetHelper $helperData
+     * @param StoreManagerInterface $storeManager
+     * @param DirectoryList $directoryList
+     * @param Filesystem $filesystem
+     * @param AbstractResource|null $resource
+     * @param AbstractDb|null $resourceCollection
+     * @param array $data
+     */
     public function __construct(
         Context $context,
         Registry $registry,
@@ -53,8 +79,8 @@ class Pix extends AbstractMethod
         StoreManagerInterface $storeManager,
         DirectoryList $directoryList,
         Filesystem $filesystem,
-        AbstractResource $resource = null,
-        AbstractDb $resourceCollection = null,
+        ?AbstractResource $resource = null,
+        ?AbstractDb $resourceCollection = null,
         array $data = []
     ) {
         parent::__construct(
@@ -78,25 +104,28 @@ class Pix extends AbstractMethod
 
     /**
      * @param InfoInterface $payment
-     * @param float $amount
+     * @param float|int $amount
      * @return void
      * @throws LocalizedException
      */
-    public function order(InfoInterface $payment, $amount)
+    public function order(InfoInterface $payment, $amount): void
     {
         try {
-            $paymentInfo = $payment->getAdditionalInformation();
-            $this->_helperData->logger(json_encode($paymentInfo));
+            $paymentInfo = (array) $payment->getAdditionalInformation();
 
-            /** @var Order $order */
+            /** @var Order|null $order */
             $order = $payment->getOrder();
-            $incrementId = $order->getIncrementId();
-            $storeName = $this->_storeMagerInterface->getStore()->getName();
+            if (!$order) {
+                throw new LocalizedException(__('Pedido inválido.'));
+            }
 
-            $rootPath = $this->directoryList->getRoot();
+            $incrementId = (string) $order->getIncrementId();
+            $storeName = (string) $this->_storeMagerInterface->getStore()->getName();
+
+            $rootPath = rtrim($this->directoryList->getRoot(), '/');
             $mediaReader = $this->filesystem->getDirectoryRead(DirectoryList::MEDIA);
 
-            $certificadoPix = 'test/' . $this->_helperData->getCert('pix');
+            $certificadoPix = 'test/' . ltrim((string) $this->_helperData->getCert('pix'), '/\\');
 
             if (!$mediaReader->isExist($certificadoPix)) {
                 throw new LocalizedException(__('Certificado Pix não encontrado.'));
@@ -108,32 +137,34 @@ class Pix extends AbstractMethod
             $data = [];
             $data['calendario']['expiracao'] = 3600;
 
-            if ($paymentInfo['documentType'] === 'CPF') {
-                $data['devedor']['cpf'] = $paymentInfo['cpfCustomer'];
-            } elseif ($paymentInfo['documentType'] === 'CNPJ') {
-                $data['devedor']['cnpj'] = $paymentInfo['cpfCustomer'];
-                $data['devedor']['nome'] = $paymentInfo['companyName'];
+            $documentType = (string) ($paymentInfo['documentType'] ?? '');
+
+            if ($documentType === 'CPF') {
+                $data['devedor']['cpf'] = $paymentInfo['cpfCustomer'] ?? null;
+            } elseif ($documentType === 'CNPJ') {
+                $data['devedor']['cnpj'] = $paymentInfo['cpfCustomer'] ?? null;
+                $data['devedor']['nome'] = $paymentInfo['companyName'] ?? null;
             }
 
-            $data['devedor']['nome'] =
-                $order->getCustomerFirstname() . ' ' . $order->getCustomerLastname();
+            $data['devedor']['nome'] = trim(
+                (string) $order->getCustomerFirstname() . ' ' . (string) $order->getCustomerLastname()
+            );
 
-            $data['valor']['original'] = number_format($amount, 2, '.', '');
+            $data['valor']['original'] = number_format((float) $amount, 2, '.', '');
             $data['chave'] = $this->_helperData->getChavePix();
             $data['infoAdicionais'] = [
                 ['nome' => 'Pagamento em', 'valor' => $storeName],
-                ['nome' => 'Número do Pedido', 'valor' => $incrementId]
+                ['nome' => 'Número do Pedido', 'valor' => $incrementId],
             ];
 
             $api = new EfiPay($options);
             $pix = $api->pixCreateImmediateCharge([], $data);
-
             $qrcode = $api->pixGenerateQRCode(['id' => $pix['loc']['id']]);
 
-            $order->setCustomerTaxvat($paymentInfo['cpfCustomer']);
-            $order->setGerencianetTransactionId($pix['txid']);
-            $order->setGerencianetChavePix($qrcode['qrcode']);
-            $order->setGerencianetQrcodePix($qrcode['imagemQrcode']);
+            $order->setCustomerTaxvat($paymentInfo['cpfCustomer'] ?? null);
+            $order->setGerencianetTransactionId($pix['txid'] ?? null);
+            $order->setGerencianetChavePix($qrcode['qrcode'] ?? null);
+            $order->setGerencianetQrcodePix($qrcode['imagemQrcode'] ?? null);
         } catch (Exception $e) {
             throw new LocalizedException(__($e->getMessage()));
         }
@@ -146,9 +177,11 @@ class Pix extends AbstractMethod
     public function assignData(DataObject $data)
     {
         $info = $this->getInfoInstance();
-        $info->setAdditionalInformation('cpfCustomer', $data['additional_data']['cpfCustomer'] ?? null);
-        $info->setAdditionalInformation('companyName', $data['additional_data']['companyName'] ?? null);
-        $info->setAdditionalInformation('documentType', $data['additional_data']['documentType'] ?? null);
+        $additionalData = (array) ($data['additional_data'] ?? []);
+
+        $info->setAdditionalInformation('cpfCustomer', $additionalData['cpfCustomer'] ?? null);
+        $info->setAdditionalInformation('companyName', $additionalData['companyName'] ?? null);
+        $info->setAdditionalInformation('documentType', $additionalData['documentType'] ?? null);
 
         return $this;
     }
@@ -157,8 +190,8 @@ class Pix extends AbstractMethod
      * @param CartInterface|null $quote
      * @return bool
      */
-    public function isAvailable(CartInterface $quote = null)
+    public function isAvailable(?CartInterface $quote = null): bool
     {
-        return $this->_helperData->isPixActive();
+        return (bool) $this->_helperData->isPixActive();
     }
 }

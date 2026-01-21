@@ -215,11 +215,18 @@ class CreditCard extends AbstractMethod
      * @param CartInterface|null $quote
      * @return bool
      */
-    public function isAvailable(CartInterface $quote = null): bool
+    public function isAvailable(?CartInterface $quote = null): bool
     {
-        $total = (float) $this->checkoutSession->getQuote()->getGrandTotal();
+        $grandTotal = 0.0;
 
-        return (bool) ($this->helperData->isCreditCardActive() && $total >= 3);
+        if ($quote) {
+            $grandTotal = (float) $quote->getGrandTotal();
+        } else {
+            $sessionQuote = $this->checkoutSession->getQuote();
+            $grandTotal = $sessionQuote ? (float) $sessionQuote->getGrandTotal() : 0.0;
+        }
+
+        return (bool) ($this->helperData->isCreditCardActive() && $grandTotal >= 3);
     }
 
     /**

@@ -28,29 +28,21 @@ use Throwable;
 class Billet extends AbstractMethod
 {
     /**
-     * Payment method code
-     *
      * @var string
      */
     protected $_code = 'gerencianet_boleto';
 
     /**
-     * Helper
-     *
      * @var GerencianetHelper
      */
     private GerencianetHelper $helperData;
 
     /**
-     * Store manager
-     *
      * @var StoreManagerInterface
      */
     private StoreManagerInterface $storeManager;
 
     /**
-     * Checkout session
-     *
      * @var Session
      */
     private Session $checkoutSession;
@@ -136,9 +128,7 @@ class Billet extends AbstractMethod
             $data = [];
 
             $i = 0;
-            $items = $order->getAllItems();
-
-            foreach ($items as $item) {
+            foreach ($order->getAllItems() as $item) {
                 if ((string) $item->getProductType() === 'configurable') {
                     continue;
                 }
@@ -188,7 +178,6 @@ class Billet extends AbstractMethod
                 $zipcode = preg_replace('/\D/', '', $zipcodeRaw) ?: '';
 
                 $streetLines = $billingAddress->getStreet() ?? [];
-                $this->helperData->logger('Endereço do cliente (street lines): ' . json_encode($streetLines));
 
                 $houseNumber = $this->extractHouseNumberFromStreet($streetLines);
 
@@ -234,7 +223,6 @@ class Billet extends AbstractMethod
                     'order_id' => $orderIncrementId,
                     'error' => $e->getMessage(),
                     'file' => $e->getFile() . ':' . $e->getLine(),
-                    'trace' => $e->getTraceAsString(),
                 ]));
 
                 throw new LocalizedException(__('Erro, por favor verifique seus campos de endereço!'));
@@ -274,7 +262,6 @@ class Billet extends AbstractMethod
                     'order_id' => $orderIncrementId,
                     'error' => $e->getMessage(),
                     'file' => $e->getFile() . ':' . $e->getLine(),
-                    'trace' => $e->getTraceAsString(),
                 ]));
 
                 throw new LocalizedException(__('Erro ao criar a cobrança. Verifique o log para mais detalhes.'));
@@ -290,7 +277,6 @@ class Billet extends AbstractMethod
                 'order_id' => $orderIncrementId,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile() . ':' . $e->getLine(),
-                'trace' => $e->getTraceAsString(),
             ]));
 
             throw new LocalizedException(__($e->getMessage()));
@@ -317,7 +303,7 @@ class Billet extends AbstractMethod
      * @param CartInterface|null $quote
      * @return bool
      */
-    public function isAvailable(CartInterface $quote = null): bool
+    public function isAvailable(?CartInterface $quote = null): bool
     {
         return (bool) $this->helperData->isBilletActive();
     }

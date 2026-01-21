@@ -1,57 +1,57 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Gerencianet\Magento2\Model\Config\Backend;
 
 use Magento\Config\Model\Config\Backend\File;
-use Magento\Framework\Exception\LocalizedException;
+use Magento\Config\Model\Config\Backend\File\RequestData\RequestDataInterface;
+use Magento\Framework\App\Cache\TypeListInterface;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\Filesystem\DirectoryList;
+use Magento\Framework\Data\Collection\AbstractDb;
+use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\Filesystem;
 use Magento\Framework\Filesystem\Directory\WriteFactory;
 use Magento\Framework\Filesystem\Io\File as IoFile;
+use Magento\Framework\Model\Context;
+use Magento\Framework\Model\ResourceModel\AbstractResource;
+use Magento\Framework\Registry;
+use Magento\MediaStorage\Model\File\UploaderFactory;
 
 class CertificadoUpload extends File
 {
-    /**
-     * @var DirectoryList
-     */
     private DirectoryList $dir;
-
-    /**
-     * @var WriteFactory
-     */
     private WriteFactory $writeFactory;
-
-    /**
-     * @var IoFile
-     */
     private IoFile $ioFile;
 
     /**
-     * @param \Magento\Framework\Model\Context $context
-     * @param \Magento\Framework\Registry $registry
-     * @param \Magento\Framework\App\Config\ScopeConfigInterface $config
-     * @param \Magento\Framework\App\Cache\TypeListInterface $cacheTypeList
-     * @param \Magento\MediaStorage\Model\File\UploaderFactory $uploaderFactory
-     * @param \Magento\Config\Model\Config\Backend\File\RequestData\RequestDataInterface $requestData
-     * @param \Magento\Framework\Filesystem $filesystem
+     * @param Context $context
+     * @param Registry $registry
+     * @param ScopeConfigInterface $config
+     * @param TypeListInterface $cacheTypeList
+     * @param UploaderFactory $uploaderFactory
+     * @param RequestDataInterface $requestData
+     * @param Filesystem $filesystem
      * @param DirectoryList $dir
      * @param WriteFactory $writeFactory
      * @param IoFile $ioFile
-     * @param \Magento\Framework\Model\ResourceModel\AbstractResource|null $resource
-     * @param \Magento\Framework\Data\Collection\AbstractDb|null $resourceCollection
+     * @param AbstractResource|null $resource
+     * @param AbstractDb|null $resourceCollection
      */
     public function __construct(
-        \Magento\Framework\Model\Context $context,
-        \Magento\Framework\Registry $registry,
-        \Magento\Framework\App\Config\ScopeConfigInterface $config,
-        \Magento\Framework\App\Cache\TypeListInterface $cacheTypeList,
-        \Magento\MediaStorage\Model\File\UploaderFactory $uploaderFactory,
-        \Magento\Config\Model\Config\Backend\File\RequestData\RequestDataInterface $requestData,
-        \Magento\Framework\Filesystem $filesystem,
+        Context $context,
+        Registry $registry,
+        ScopeConfigInterface $config,
+        TypeListInterface $cacheTypeList,
+        UploaderFactory $uploaderFactory,
+        RequestDataInterface $requestData,
+        Filesystem $filesystem,
         DirectoryList $dir,
         WriteFactory $writeFactory,
         IoFile $ioFile,
-        \Magento\Framework\Model\ResourceModel\AbstractResource $resource = null,
-        \Magento\Framework\Data\Collection\AbstractDb $resourceCollection = null
+        ?AbstractResource $resource = null,
+        ?AbstractDb $resourceCollection = null
     ) {
         $this->dir = $dir;
         $this->writeFactory = $writeFactory;
@@ -74,7 +74,7 @@ class CertificadoUpload extends File
      * @return $this
      * @throws LocalizedException
      */
-    public function beforeSave()
+    public function beforeSave(): self
     {
         $uploadDir = rtrim($this->dir->getPath(DirectoryList::MEDIA), '/') . '/test/';
 
@@ -103,9 +103,9 @@ class CertificadoUpload extends File
     }
 
     /**
-     * @return array
+     * @return string[]
      */
-    protected function _getAllowedExtensions()
+    protected function _getAllowedExtensions(): array
     {
         return ['pem', 'p12'];
     }
