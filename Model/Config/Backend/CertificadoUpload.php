@@ -4,7 +4,7 @@ namespace Gerencianet\Magento2\Model\Config\Backend;
 
 use Magento\Config\Model\Config\Backend\File;
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Filesystem\DirectoryList;
+use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Filesystem\Directory\WriteFactory;
 use Magento\Framework\Filesystem\Io\File as IoFile;
 

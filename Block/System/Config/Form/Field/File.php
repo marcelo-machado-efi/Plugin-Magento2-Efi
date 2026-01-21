@@ -6,7 +6,7 @@ use Magento\Config\Block\System\Config\Form\Field\File as MageFile;
 use Magento\Framework\Data\Form\Element\CollectionFactory;
 use Magento\Framework\Data\Form\Element\Factory;
 use Magento\Framework\Escaper;
-use Magento\Framework\Filesystem\DirectoryList;
+use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Filesystem\Driver\File as FileDriver;
 
 class File extends MageFile
@@ -57,7 +57,7 @@ class File extends MageFile
         $nomeArquivo = (string) $this->getValue();
         $nomeArquivo = ltrim($nomeArquivo, '/\\');
 
-        $filepath = rtrim($this->directoryList->getPath('media'), '/') . '/test/' . $nomeArquivo;
+        $filepath = rtrim($this->directoryList->getPath(DirectoryList::MEDIA), '/') . '/test/' . $nomeArquivo;
 
         if (
             $nomeArquivo !== ''
